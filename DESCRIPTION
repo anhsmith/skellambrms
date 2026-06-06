@@ -1,18 +1,20 @@
 Package: skellambrms
-Type: Package
-Title: What the Package Does (Title Case)
+Title: Symmetric Skellam Distribution as a brms Custom Family
 Version: 0.1.0
-Authors@R: c(
-    person(
-      "Jane", "Doe",
-      email = "jane@example.com",
-      role = c("aut", "cre")
-    )
-  )
-Description: More about what it does (maybe more than one line).
-    Continuation lines should be indented.
-License: What license is it under?
+Authors@R: person("Adam N. H.", "Smith", , "anhsmith@gmail.com", role = c("aut", "cre"))
+Description: Provides the symmetric Skellam distribution — the distribution
+    of the difference of two independent Poisson random variables with equal
+    rates — as a custom family for brms. Intended for modelling set-level
+    differences between paired count sources.
+License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
+RoxygenNote: 7.3.3
+Imports:
+    brms,
+    skellam
+Suggests:
+    rstan,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
 URL: https://github.com/anhsmith/skellambrms
 BugReports: https://github.com/anhsmith/skellambrms/issues
