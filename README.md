@@ -23,7 +23,7 @@ pak::pak("anhsmith/skellambrms")
 ```
 
 Stan and a C++ toolchain are required. On Windows, install 
-[Rtools45](https://cran.r-project.org/bin/windows/Rtools/rtools45/rtools.htm). 
+[Rtools45](https://cran.r-project.org/bin/windows/Rtools/rtools45/rtools.html). 
 Works with either rstan or cmdstanr as the brms backend.
 
 ## Usage
