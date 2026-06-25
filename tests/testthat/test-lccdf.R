@@ -1,7 +1,7 @@
 # tests/testthat/test-lccdf.R
 #
 # Ports the R-side and Stan-side validation of skellam1_lccdf from the
-# source investigation (05-04-skellam-laplace-truncation-validation.qmd in
+# source investigation (05-04-candidate-family-validation.qmd in
 # tnc001-belize-em): agreement against skellam::pskellam() and a
 # brute-force log_sum_exp tail-sum, both on the R side and, once exposed
 # via rstan::expose_stan_functions(), on the Stan side too.
@@ -242,7 +242,7 @@ test_that("skellam1_stanvars() + skellam1_lccdf_stanvars() works with resp_trunc
   dat   <- data.frame(delta = delta, neg_bound = -y_lb)
 
   # brms's default Intercept prior (student_t(3, 0, 2.5)) is documented
-  # (05-04-skellam-laplace-truncation-validation.qmd, "sane_prior") to be
+  # (05-04-candidate-family-validation.qmd, "sane_prior") to be
   # wide enough that this custom Bessel-based likelihood can occasionally
   # wander to a nonsensical log(sigma) region for an unlucky seed -- hit
   # here for seed=1 under the sigma-reparameterisation (165 divergences,
@@ -256,7 +256,7 @@ test_that("skellam1_stanvars() + skellam1_lccdf_stanvars() works with resp_trunc
       stanvars = skellam1_stanvars() + skellam1_lccdf_stanvars(),
       data     = dat,
       prior    = sane_prior,
-      backend  = "rstan",
+      backend  = "cmdstanr",
       chains   = 2,
       iter     = 800,
       warmup   = 400,

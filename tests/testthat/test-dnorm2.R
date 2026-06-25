@@ -1,28 +1,25 @@
-# tests/testthat/test-dlaplace2.R
+# tests/testthat/test-dnorm2.R
 #
-# Validates dlaplace2(), the free-location/free-scale discrete Laplace
-# family, with the same rigor as dlaplace1's test suite. See
-# test-dlaplace1.R's file header for why extraDistr::ddlaplace() is not
-# a usable reference, and for the numerically stable log-space reference
-# pattern (direct closed-form survival function for the lccdf, not
-# "1 - exp(log CDF)") used here too -- both lessons carried straight over
-# from getting dlaplace1's tests right.
+# Validates dnorm2(), the free-location/free-scale discrete normal
+# family, with the same rigor as dnorm1's test suite. See
+# test-dnorm1.R's file header for the full citation of the documented
+# Stan limitation (stan-dev/math#1985: normal_lccdf underflows to -inf
+# above (y-mu)/sigma ~ 8.25) and why the erfc()-based exact survival
+# form is used in stanfunctions.R instead -- both apply identically here.
 
-log_laplace_cdf <- function(x, b) {
-  ifelse(x < 0, log(0.5) + x / b, log1p(-0.5 * exp(-x / b)))
-}
+log_normal_cdf   <- function(x, sigma) pnorm(x, sd = sigma, log.p = TRUE)
+log_normal_lccdf <- function(x, sigma) pnorm(x, sd = sigma, lower.tail = FALSE, log.p = TRUE)
+log_diff_exp_r   <- function(a, bb) a + log1p(-exp(bb - a))
 
-log_laplace_lccdf <- function(x, b) {
-  ifelse(x >= 0, log(0.5) - x / b, log1p(-0.5 * exp(x / b)))
-}
-
-log_diff_exp_r <- function(a, bb) a + log1p(-exp(bb - a))
-
-# R-side log-PMF: same computation as log_lik_dlaplace2, in stable
-# log-space (see test-dlaplace1.R header).
-r_lpmf_dl2 <- function(z, mu, sigma) {
-  b <- sigma / sqrt(2)
-  log_diff_exp_r(log_laplace_cdf(z - mu + 0.5, b), log_laplace_cdf(z - mu - 0.5, b))
+# R-side log-PMF: same stable log-space construction as test-dnorm1.R's
+# reference, branched on whether z is on the far side of mu rather than
+# of 0.
+r_lpmf_dnorm2 <- function(z, mu, sigma) {
+  ifelse(
+    z >= mu,
+    log_diff_exp_r(log_normal_lccdf(z - mu - 0.5, sigma), log_normal_lccdf(z - mu + 0.5, sigma)),
+    log_diff_exp_r(log_normal_cdf(z - mu + 0.5, sigma), log_normal_cdf(z - mu - 0.5, sigma))
+  )
 }
 
 mu_vals    <- c(-20, -5, 0, 5, 20)
@@ -35,33 +32,39 @@ sigma_vals <- c(0.5, 1, 5, 20, 50)
 test_that("R log-PMF normalises to 1 across grid, including nonzero mu", {
   for (mu in mu_vals) {
     for (sigma in sigma_vals) {
-      half  <- ceiling(40 * sigma + 50)
-      total <- suppressWarnings(sum(exp(r_lpmf_dl2((mu - half):(mu + half), mu, sigma))))
+      # kmax anchored to ~10 SDs, not dlaplace2's 40*sigma+50 -- see
+      # test-dnorm1.R for why the discrete normal needs far fewer SDs to
+      # capture essentially all the mass than the heavier-tailed Laplace.
+      half  <- ceiling(10 * sigma + 20)
+      total <- sum(exp(r_lpmf_dnorm2((mu - half):(mu + half), mu, sigma)))
       expect_equal(total, 1, tolerance = 1e-8,
                    label = paste0("mu = ", mu, ", sigma = ", sigma))
     }
   }
 })
 
-test_that("mu = 0 reduces exactly to dlaplace1's lpmf", {
-  r_lpmf_dl1 <- function(z, sigma) {
-    b <- sigma / sqrt(2)
-    log_diff_exp_r(log_laplace_cdf(z + 0.5, b), log_laplace_cdf(z - 0.5, b))
+test_that("mu = 0 reduces exactly to dnorm1's lpmf", {
+  r_lpmf_dnorm1 <- function(z, sigma) {
+    ifelse(
+      z >= 0,
+      log_diff_exp_r(log_normal_lccdf(z - 0.5, sigma), log_normal_lccdf(z + 0.5, sigma)),
+      log_diff_exp_r(log_normal_cdf(z + 0.5, sigma), log_normal_cdf(z - 0.5, sigma))
+    )
   }
   for (sigma in c(0.5, 5, 20)) {
     for (z in -5:5) {
-      expect_equal(r_lpmf_dl2(z, 0, sigma), r_lpmf_dl1(z, sigma), tolerance = 1e-10,
+      expect_equal(r_lpmf_dnorm2(z, 0, sigma), r_lpmf_dnorm1(z, sigma), tolerance = 1e-10,
                    label = paste0("sigma = ", sigma, ", z = ", z))
     }
   }
 })
 
-test_that("mu shifts the distribution exactly: r_lpmf_dl2(z, mu, sigma) == r_lpmf_dl2(z - mu, 0, sigma)", {
+test_that("mu shifts the distribution exactly: r_lpmf_dnorm2(z, mu, sigma) == r_lpmf_dnorm2(z - mu, 0, sigma)", {
   for (mu in mu_vals) {
     for (sigma in c(1, 10)) {
       for (z_offset in -5:5) {
         z <- round(mu) + z_offset
-        expect_equal(r_lpmf_dl2(z, mu, sigma), r_lpmf_dl2(z - mu, 0, sigma), tolerance = 1e-10,
+        expect_equal(r_lpmf_dnorm2(z, mu, sigma), r_lpmf_dnorm2(z - mu, 0, sigma), tolerance = 1e-10,
                      label = paste0("mu = ", mu, ", sigma = ", sigma, ", z = ", z))
       }
     }
@@ -69,11 +72,9 @@ test_that("mu shifts the distribution exactly: r_lpmf_dl2(z, mu, sigma) == r_lpm
 })
 
 test_that("mu and sigma are not coupled: small sigma with large |mu| is valid (unlike skellam2)", {
-  # No sigma >= |mu| floor for this family -- confirm a tiny sigma
-  # combined with a large mu produces a well-defined, normalised PMF.
   mu <- 1000
   sigma <- 0.5
-  total <- suppressWarnings(sum(exp(r_lpmf_dl2((mu - 50):(mu + 50), mu, sigma))))
+  total <- sum(exp(r_lpmf_dnorm2((mu - 50):(mu + 50), mu, sigma)))
   expect_equal(total, 1, tolerance = 1e-6)
 })
 
@@ -81,7 +82,7 @@ test_that("R log-PMF is numerically stable, realistic-but-stressed range", {
   for (mu in c(-50, 0, 50)) {
     for (sigma in c(0.2, 1, 10, 100)) {
       for (k in round(mu + sigma * c(-10, 0, 10))) {
-        val <- r_lpmf_dl2(k, mu, sigma)
+        val <- r_lpmf_dnorm2(k, mu, sigma)
         expect_false(is.nan(val),      label = paste0("NaN at mu=", mu, " sigma=", sigma, " k=", k))
         expect_false(is.infinite(val), label = paste0("Inf at mu=", mu, " sigma=", sigma, " k=", k))
       }
@@ -91,35 +92,33 @@ test_that("R log-PMF is numerically stable, realistic-but-stressed range", {
 
 log_sum_exp <- function(x) { m <- max(x); m + log(sum(exp(x - m))) }
 
-# Brute-force log P(Z > y), summing from y+1 (dlaplace2_lccdf is defined
-# directly as log P(Z>y), no skellam-style offset -- see test-dlaplace1.R).
-logS_bruteforce_dl2 <- function(y, mu, sigma, K = NULL) {
-  if (is.null(K)) K <- y + ceiling(40 * sigma + 50)
-  log_sum_exp(r_lpmf_dl2((y + 1):K, mu, sigma))
+# Brute-force log P(Z > y), summing from y+1 (dnorm2_lccdf is defined
+# directly as log P(Z>y), no skellam-style offset -- see test-dnorm1.R).
+# K anchored to max(y, mu), not y alone: when y is far *below* mu (e.g.
+# probing -10 SDs from the mean), the sum still needs to extend ~10 SDs
+# *above* mu to capture the upper tail that makes up most of P(Z>y) in
+# that regime -- anchoring only to y undershoots badly there (confirmed:
+# anchoring to y alone produced a ~0.42 log-probability error at
+# mu=20, sigma=50, y_mult=-10, where K landed at only mu+20, nowhere
+# near far enough past the mean for sigma=50).
+logS_bruteforce_dnorm2 <- function(y, mu, sigma, K = NULL) {
+  if (is.null(K)) K <- max(y, mu) + ceiling(10 * sigma + 20)
+  log_sum_exp(r_lpmf_dnorm2((y + 1):K, mu, sigma))
 }
 
-# Closed-form log P(Z > y) via the exact upper-tail survival function
-# (y - mu + 0.5 is not guaranteed >= 0 here since mu can be large and
-# positive -- log_laplace_lccdf handles both signs correctly).
-logS_closed_dl2 <- function(y, mu, sigma) {
-  b <- sigma / sqrt(2)
-  log_laplace_lccdf(y - mu + 0.5, b)
-}
+# Closed-form log P(Z > y) via the same stable survival function used in
+# the reference's z>=mu branch.
+logS_closed_dnorm2 <- function(y, mu, sigma) log_normal_lccdf(y - mu + 0.5, sigma)
 
-# y as mu + a multiple of sigma (SD units), capped at 10 SDs -- see
-# test-dlaplace1.R for why (a true double-precision floor on the
-# CDF-differencing reference beyond that, not a family bug).
 y_multiples <- c(-10, -5, -3, -1, 0, 1, 3, 5, 10)
 trunc_grid  <- expand.grid(mu = mu_vals, sigma = sigma_vals, y_mult = y_multiples)
 trunc_grid$y <- round(trunc_grid$mu + trunc_grid$sigma * trunc_grid$y_mult)
 
 test_that("R brute-force log-CCDF agrees with the closed form across grid", {
-  # suppressWarnings: same benign ifelse()-eager-evaluation noise noted
-  # in test-dlaplace1.R's normalisation test.
-  diffs <- suppressWarnings(mapply(
-    function(mu, sigma, y) logS_closed_dl2(y, mu, sigma) - logS_bruteforce_dl2(y, mu, sigma),
+  diffs <- mapply(
+    function(mu, sigma, y) logS_closed_dnorm2(y, mu, sigma) - logS_bruteforce_dnorm2(y, mu, sigma),
     trunc_grid$mu, trunc_grid$sigma, trunc_grid$y
-  ))
+  )
   expect_lt(max(abs(diffs)), 1e-8)
 })
 
@@ -127,7 +126,7 @@ test_that("R brute-force log-CCDF agrees with the closed form across grid", {
 # Stan tests — require rstan; skipped silently if unavailable
 # -----------------------------------------------------------------------
 
-lpmf_stan_code <- paste0("functions {\n", dlaplace2_stan_funs, "}\nmodel {}\n")
+lpmf_stan_code <- paste0("functions {\n", dnorm2_stan_funs, "}\nmodel {}\n")
 
 stan_ready <- FALSE
 if (requireNamespace("rstan", quietly = TRUE)) {
@@ -145,15 +144,15 @@ test_that("Stan log-PMF matches R log-space reference across grid", {
   for (mu in mu_vals) {
     for (sigma in sigma_vals) {
       k_vals    <- unique(round(mu + sigma * (-10:10)))
-      stan_vals <- vapply(k_vals, function(k) dlaplace2_lpmf(as.integer(k), mu, sigma), numeric(1))
-      r_vals    <- vapply(k_vals, r_lpmf_dl2, numeric(1), mu = mu, sigma = sigma)
+      stan_vals <- vapply(k_vals, function(k) dnorm2_lpmf(as.integer(k), mu, sigma), numeric(1))
+      r_vals    <- vapply(k_vals, r_lpmf_dnorm2, numeric(1), mu = mu, sigma = sigma)
       expect_equal(stan_vals, r_vals, tolerance = 1e-6,
                    label = paste0("mu = ", mu, ", sigma = ", sigma))
     }
   }
 })
 
-lccdf_stan_code <- paste0("functions {\n", dlaplace2_lccdf_stan, "}\nmodel {}\n")
+lccdf_stan_code <- paste0("functions {\n", dnorm2_lccdf_stan, "}\nmodel {}\n")
 
 lccdf_ready <- FALSE
 if (requireNamespace("rstan", quietly = TRUE)) {
@@ -166,28 +165,28 @@ if (requireNamespace("rstan", quietly = TRUE)) {
   }, error = function(e) NULL)
 }
 
-test_that("Stan dlaplace2_lccdf matches R closed-form / brute-force references", {
+test_that("Stan dnorm2_lccdf matches R closed-form / brute-force references", {
   skip_if_not(lccdf_ready, "rstan unavailable or Stan compilation failed")
   diffs_closed <- mapply(
-    function(mu, sigma, y) dlaplace2_lccdf(as.integer(y), mu, sigma) - logS_closed_dl2(y, mu, sigma),
+    function(mu, sigma, y) dnorm2_lccdf(as.integer(y), mu, sigma) - logS_closed_dnorm2(y, mu, sigma),
     trunc_grid$mu, trunc_grid$sigma, trunc_grid$y
   )
   expect_lt(max(abs(diffs_closed)), 1e-6)
 
-  diffs_brute <- suppressWarnings(mapply(
-    function(mu, sigma, y) dlaplace2_lccdf(as.integer(y), mu, sigma) - logS_bruteforce_dl2(y, mu, sigma),
+  diffs_brute <- mapply(
+    function(mu, sigma, y) dnorm2_lccdf(as.integer(y), mu, sigma) - logS_bruteforce_dnorm2(y, mu, sigma),
     trunc_grid$mu, trunc_grid$sigma, trunc_grid$y
-  ))
+  )
   expect_lt(max(abs(diffs_brute)), 1e-6)
 })
 
-test_that("Stan dlaplace2_lpmf/lccdf are numerically stable, realistic-but-stressed range", {
+test_that("Stan dnorm2_lpmf/lccdf are numerically stable, realistic-but-stressed range", {
   skip_if_not(stan_ready && lccdf_ready, "rstan unavailable or Stan compilation failed")
   for (mu in c(-50, 0, 50)) {
     for (sigma in c(0.2, 1, 10, 100)) {
       for (k in round(mu + sigma * c(-10, 0, 10))) {
-        lpmf_val  <- dlaplace2_lpmf(as.integer(k), mu, sigma)
-        lccdf_val <- dlaplace2_lccdf(as.integer(k), mu, sigma)
+        lpmf_val  <- dnorm2_lpmf(as.integer(k), mu, sigma)
+        lccdf_val <- dnorm2_lccdf(as.integer(k), mu, sigma)
         expect_false(is.nan(lpmf_val) || is.infinite(lpmf_val),
                      label = paste0("lpmf at mu=", mu, " sigma=", sigma, " k=", k))
         expect_false(is.nan(lccdf_val) || is.infinite(lccdf_val),
@@ -207,12 +206,10 @@ test_that("make_stancode() shows no constraint coupling mu and sigma", {
   fake_dat <- data.frame(delta = sample(-5:5, 20, replace = TRUE), x = rnorm(20))
   code <- brms::make_stancode(
     brms::bf(delta ~ x, sigma ~ x),
-    family   = dlaplace2(),
-    stanvars = dlaplace2_stanvars(),
+    family   = dnorm2(),
+    stanvars = dnorm2_stanvars(),
     data     = fake_dat
   )
-  # No reject() anywhere, and sigma's only bound is its own plain lb=0
-  # (from the log link), not anything depending on mu.
   expect_false(grepl("reject\\(", code))
 })
 
@@ -220,15 +217,14 @@ test_that("make_stancode() shows no constraint coupling mu and sigma", {
 # End-to-end smoke tests: resp_trunc() recovery, zero and nonzero mu_true
 # -----------------------------------------------------------------------
 
-fit_and_check_dlaplace2 <- function(mu_true, sigma_true, seed) {
+fit_and_check_dnorm2 <- function(mu_true, sigma_true, seed) {
   set.seed(seed)
   n    <- 60
-  b_true <- sigma_true / sqrt(2)
   y_lb <- sample(0:10, n, replace = TRUE)
 
   draw_trunc <- function(y) {
     repeat {
-      d <- round(mu_true + rexp(1, rate = 1 / b_true) - rexp(1, rate = 1 / b_true))
+      d <- round(rnorm(1, mean = mu_true, sd = sigma_true))
       if (d >= -y) return(d)
     }
   }
@@ -240,8 +236,8 @@ fit_and_check_dlaplace2 <- function(mu_true, sigma_true, seed) {
 
   fit <- brms::brm(
     brms::bf(delta | trunc(lb = neg_bound) ~ 1, sigma ~ 1),
-    family   = dlaplace2(),
-    stanvars = dlaplace2_stanvars() + dlaplace2_lccdf_stanvars(),
+    family   = dnorm2(),
+    stanvars = dnorm2_stanvars() + dnorm2_lccdf_stanvars(),
     data     = dat,
     prior    = sane_prior,
     backend  = "cmdstanr",
@@ -267,13 +263,13 @@ fit_and_check_dlaplace2 <- function(mu_true, sigma_true, seed) {
   )
 }
 
-test_that("dlaplace2 recovers a genuinely nonzero mu_true under resp_trunc()", {
+test_that("dnorm2 recovers a genuinely nonzero mu_true under resp_trunc()", {
   skip_on_cran()
   skip_if_not_installed("brms")
   skip_if_not(stan_ready, "rstan unavailable or Stan compilation failed")
 
   suppressMessages({
-    res <- fit_and_check_dlaplace2(mu_true = 4, sigma_true = 5, seed = 4)
+    res <- fit_and_check_dnorm2(mu_true = 4, sigma_true = 5, seed = 8)
   })
 
   expect_s3_class(res$fit, "brmsfit")
@@ -281,13 +277,13 @@ test_that("dlaplace2 recovers a genuinely nonzero mu_true under resp_trunc()", {
   expect_true(res$sigma_ok, label = res$sigma_label)
 })
 
-test_that("dlaplace2 does not spuriously detect bias when mu_true = 0", {
+test_that("dnorm2 does not spuriously detect bias when mu_true = 0", {
   skip_on_cran()
   skip_if_not_installed("brms")
   skip_if_not(stan_ready, "rstan unavailable or Stan compilation failed")
 
   suppressMessages({
-    res <- fit_and_check_dlaplace2(mu_true = 0, sigma_true = 5, seed = 5)
+    res <- fit_and_check_dnorm2(mu_true = 0, sigma_true = 5, seed = 9)
   })
 
   expect_s3_class(res$fit, "brmsfit")

@@ -203,7 +203,7 @@ test_that("Stan skellam2_lccdf is numerically stable at large sigma (normal-appr
   skip_if_not(lccdf_ready, "rstan unavailable or Stan compilation failed")
   # Realistic-but-stressed range: real per-taxon mu_hat in this project's
   # data tops out around 30 (see
-  # 05-04-skellam-truncation-investigation.qmd), so mu in [-50, 50] and
+  # 05-04-candidate-family-validation.qmd), so mu in [-50, 50] and
   # sigma in [0, 100] is comfortably beyond anything this model will see
   # without being an arbitrary, disconnected extreme. y is chosen near
   # each mu (where real data would actually land), not deliberately far
@@ -288,7 +288,7 @@ test_that("make_stancode() shows theta1/theta2 enforced structurally, not via re
   expect_false(grepl("reject\\(", code))
   # The deterministic construction itself is present in the generated
   # functions block.
-  expect_true(grepl("fabs(mu) + square(sigmaexcess)", code, fixed = TRUE))
+  expect_true(grepl("abs(mu) + square(sigmaexcess)", code, fixed = TRUE))
 })
 
 # -----------------------------------------------------------------------
@@ -330,7 +330,7 @@ test_that("skellam2_stanvars() + skellam2_lccdf_stanvars() recovers nonzero mu_t
       stanvars = skellam2_stanvars() + skellam2_lccdf_stanvars(),
       data     = dat,
       prior    = sane_prior,
-      backend  = "rstan",
+      backend  = "cmdstanr",
       chains   = 2,
       iter     = 1000,
       warmup   = 500,

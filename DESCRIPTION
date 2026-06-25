@@ -1,11 +1,18 @@
 Package: skellambrms
-Title: Symmetric Skellam Distribution as a brms Custom Family
-Version: 0.2.0
+Title: Skellam and Related Discrete Difference Distributions as brms
+    Custom Families
+Version: 0.3.0
 Authors@R: person("Adam N. H.", "Smith", , "anhsmith@gmail.com", role = c("aut", "cre"))
-Description: Provides the symmetric Skellam distribution — the distribution
-    of the difference of two independent Poisson random variables with equal
-    rates — as a custom family for brms. Intended for modelling set-level
-    differences between paired count sources.
+Description: Provides custom brms families for modelling the difference
+    between two paired count sources: the symmetric and asymmetric Skellam
+    distributions (the distribution of the difference of two Poisson random
+    variables), and discrete Laplace and discrete normal distributions
+    discretised via CDF differencing. Each distribution is available with
+    location fixed at zero (testing whether two sources agree on average)
+    and with a free location parameter (quantifying systematic
+    disagreement), all sampled on a common SD-scale spread parameter.
+    Includes truncation support via brms's resp_trunc(). Intended for
+    modelling set-level differences between paired count sources.
 License: MIT + file LICENSE
 Encoding: UTF-8
 RoxygenNote: 7.3.3
@@ -13,6 +20,7 @@ Imports:
     brms,
     skellam
 Suggests:
+    cmdstanr,
     rstan,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

@@ -56,6 +56,6 @@ match this family's CDF-differenced PMF (e.g. at `b=3`,
 tests validate against a hand-derived CDF-difference R reference
 instead (the documented fallback for when a package reference isn't
 applicable), matching the CDF-differencing already used in
-`05-04-skellam-truncation-investigation.qmd`'s exploratory plots.
+`05-04-candidate-family-validation.qmd`'s exploratory plots.
 }
 \keyword{internal}

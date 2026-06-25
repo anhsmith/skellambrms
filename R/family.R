@@ -18,7 +18,7 @@
 #' (mean, SD-scale) convention shared with skellam2(), dlaplace1(), and
 #' dlaplace2(). Since sigma = sqrt(2 * mu_skellam), a prior previously
 #' stated on log(mu_skellam) — e.g. normal(1, 1.5), used in
-#' 05-04-skellam-laplace-truncation-validation.qmd — translates as:
+#' 05-04-candidate-family-validation.qmd — translates as:
 #'   log(sigma) = 0.5 * log(2) + 0.5 * log(mu_skellam)
 #' so an intercept of 1 on the old log(mu_skellam) scale corresponds to
 #' an intercept of 0.5*log(2) + 0.5*1 ≈ 0.847 on the new log(sigma) scale,
@@ -393,7 +393,7 @@ posterior_epred_skellam2 <- function(prep) {
 #' tests validate against a hand-derived CDF-difference R reference
 #' instead (the documented fallback for when a package reference isn't
 #' applicable), matching the CDF-differencing already used in
-#' `05-04-skellam-truncation-investigation.qmd`'s exploratory plots.
+#' `05-04-candidate-family-validation.qmd`'s exploratory plots.
 #'
 #' @return A brms custom_family object.
 #' @export
@@ -574,4 +574,242 @@ posterior_predict_dlaplace2 <- function(i, prep, ...) {
 #' @keywords internal
 posterior_epred_dlaplace2 <- function(prep) {
   brms::get_dpar(prep, "mu")  # E[discrete Laplace(mu, sigma)] = mu
+}
+
+# ==========================================================================
+# dnorm1: discrete normal, location fixed at 0, free scale
+# ==========================================================================
+
+#' Discrete-normal custom family for brms (location 0, free scale)
+#'
+#' @description
+#' Returns a brms custom family for the discrete normal distribution,
+#' location fixed at 0, discretised from the continuous Normal(0, sigma)
+#' via CDF differencing: `P(Z=z) = F(z+0.5) - F(z-0.5)`. One parameter,
+#' sigma (link = "log"), the SD; the mean is always zero. Same
+#' CDF-differencing pattern as `dlaplace1()`, using Stan's built-in
+#' `normal_lcdf`/`normal_lccdf` directly -- no Bessel function and no
+#' iteration cap needed, but see the cancellation note below for a
+#' branch this family's PMF does need.
+#'
+#' Use in a brm() call as:
+#'   brm(y ~ ..., family = dnorm1(), stanvars = dnorm1_stanvars(), data = ...)
+#'
+#' @details
+#' **Naming note.** Same forced naming as `skellam1()`/`dlaplace1()`:
+#' `brms::custom_family()` requires a dpar literally named `"mu"`; here
+#' it represents sigma (the SD), not a mean. See `?skellam1` Details for
+#' the full rationale.
+#'
+#' **No scale conversion needed.** Unlike `dlaplace1()`, where Stan's
+#' `double_exponential_lcdf` expects the continuous Laplace's own scale
+#' `b` (requiring `b = sigma / sqrt(2)` first), the continuous normal's
+#' own SD parameter *is* sigma directly -- `sigma` is passed straight to
+#' `normal_lcdf`/`normal_lccdf` with no intermediate conversion.
+#'
+#' **Cancellation in the PMF, fixed by branching on z's sign.** The
+#' naive `log_diff_exp(normal_lcdf(z+0.5), normal_lcdf(z-0.5))` fails
+#' once `z` is far enough into the positive tail that both `normal_lcdf`
+#' calls round to the same double (both within machine epsilon of
+#' `log(1)=0`) -- confirmed to occur at only ~10 SDs out, well inside
+#' this package's realistic-but-stressed test range for the other
+#' families, and far sooner than the analogous direct-subtraction form
+#' in `dlaplace1()` (the normal's thinner tail saturates near 1 much
+#' faster per SD than the Laplace's). Fixed in `dnorm1_lpmf` (and the
+#' R-side `log_lik_dnorm1`) by differencing two *survival* values
+#' (`normal_lccdf`, both small and hence distinguishable) instead of two
+#' *CDF* values when `z >= 0` -- the same exact-survival-form idea
+#' `dlaplace1_lccdf`/`dlaplace2_lccdf` already use, applied here to the
+#' PMF rather than the CCDF, since CDF differencing is itself the
+#' operation that creates the cancellation risk in the first place.
+#'
+#' @return A brms custom_family object.
+#' @export
+dnorm1 <- function() {
+  brms::custom_family(
+    name  = "dnorm1",
+    dpars = "mu",   # forced by brms; represents sigma here -- see Details
+    links = "log",
+    lb    = 0,
+    type  = "int"
+  )
+}
+
+#' @rdname dnorm1
+#' @export
+dnorm1_stanvars <- function() {
+  brms::stanvar(block = "functions", scode = dnorm1_stan_funs)
+}
+
+#' Truncated-discrete-normal log-CCDF for use with brms's resp_trunc()
+#'
+#' @description
+#' Returns a `brms::stanvar()` defining `dnorm1_lccdf`, the log
+#' complementary CDF of the discrete Normal(0, sigma) family --
+#' `dnorm1_lccdf(y, sigma)` = log P(Z > y). Same role and calling
+#' convention as `dlaplace1_lccdf_stanvars()`, but built directly on
+#' Stan's `normal_lccdf` (an upper-tail log-survival function Stan
+#' exposes as a built-in for the normal), rather than a
+#' `log1m_exp(lcdf(...))` composition -- no threshold argument and no
+#' large-argument failure mode to guard against.
+#'
+#' @return A `brms::stanvars` object defining the `dnorm1_lccdf` Stan
+#'   function, for combining with `dnorm1_stanvars()` via `+`.
+#' @export
+dnorm1_lccdf_stanvars <- function() {
+  brms::stanvar(block = "functions", scode = dnorm1_lccdf_stan)
+}
+
+# --------------------------------------------------------------------------
+# brms interface functions — found by name convention, must be exported
+# --------------------------------------------------------------------------
+
+#' @rdname dnorm1
+#' @export
+#' @keywords internal
+log_lik_dnorm1 <- function(i, prep) {
+  sigma <- brms::get_dpar(prep, "mu", i = i)  # brms dpar name "mu" is sigma here -- see Details
+  z     <- prep$data$Y[i]
+  # Not simply log(pnorm(z+0.5) - pnorm(z-0.5)): both terms round to
+  # exactly 1.0 once z is ~10 SDs into the positive tail, giving log(0) =
+  # -Inf -- confirmed to occur well inside this package's "realistic but
+  # stressed" range, unlike the analogous direct-subtraction form in
+  # log_lik_dlaplace1 (the Laplace's heavier tail keeps that one accurate
+  # much further out). Same z >= 0 branch as dnorm1_lpmf in
+  # stanfunctions.R: difference two survival probabilities (small, hence
+  # distinguishable) instead of two CDF probabilities (both near 1) when
+  # z is on the far side of the mean.
+  if (z >= 0) {
+    log(stats::pnorm(z - 0.5, sd = sigma, lower.tail = FALSE) -
+        stats::pnorm(z + 0.5, sd = sigma, lower.tail = FALSE))
+  } else {
+    log(stats::pnorm(z + 0.5, sd = sigma) - stats::pnorm(z - 0.5, sd = sigma))
+  }
+}
+
+#' @rdname dnorm1
+#' @export
+#' @keywords internal
+posterior_predict_dnorm1 <- function(i, prep, ...) {
+  sigma <- brms::get_dpar(prep, "mu", i = i)  # brms dpar name "mu" is sigma here -- see Details
+  # P(round(X)=z) = P(z-0.5 <= X < z+0.5) = F(z+0.5) - F(z-0.5) for
+  # X ~ Normal(0, sigma) reproduces this family's CDF-differenced PMF
+  # exactly, the same rounding identity used in posterior_predict_dlaplace1.
+  round(stats::rnorm(length(sigma), mean = 0, sd = sigma))
+}
+
+#' @rdname dnorm1
+#' @export
+#' @keywords internal
+posterior_epred_dnorm1 <- function(prep) {
+  sigma <- brms::get_dpar(prep, "mu")  # brms dpar name "mu" is sigma here -- see Details
+  0 * sigma  # E[discrete Normal(0, sigma)] = 0; preserves draw x obs matrix dimensions
+}
+
+# ==========================================================================
+# dnorm2: discrete normal, free location AND free scale, uncoupled
+# ==========================================================================
+
+#' Discrete-normal custom family for brms (free location and scale)
+#'
+#' @description
+#' Returns a brms custom family for the discrete normal distribution
+#' with both location (`mu`, link = "identity") and scale (`sigma`,
+#' link = "log") free, discretised via CDF differencing exactly as
+#' `dnorm1()` but centred at `mu` instead of fixed at 0:
+#' `P(Z=z) = F(z+0.5) - F(z-0.5)`, `F` the continuous Normal(mu, sigma)
+#' CDF.
+#'
+#' Use in a brm() call as:
+#'   brm(y ~ ..., family = dnorm2(), stanvars = dnorm2_stanvars(), data = ...)
+#'
+#' @details
+#' **No naming workaround needed.** Unlike `skellam1()`/`dlaplace1()`/
+#' `dnorm1()`, `mu` here genuinely is the family's mean, so brms's "must
+#' have a `mu` parameter" requirement (see `?skellam1` Details) is
+#' satisfied directly -- no forced reinterpretation.
+#'
+#' **No constraint coupling mu and sigma.** Same structural contrast with
+#' `skellam2()` already documented for `dlaplace2()` (see `?dlaplace2`
+#' Details): `mu` and `sigma` are free, independent parameters here, by
+#' design -- the point of having multiple free-location/free-scale
+#' candidate families alongside the asymmetric Skellam is to compare a
+#' model where bias and spread are structurally coupled (skellam2)
+#' against ones where they are not (dlaplace2, dnorm2).
+#'
+#' **Cancellation in the PMF.** Same issue and fix as `dnorm1()` (see its
+#' Details), generalised to branch on whether `z` is on the far side of
+#' `mu` rather than of 0.
+#'
+#' @return A brms custom_family object.
+#' @export
+dnorm2 <- function() {
+  brms::custom_family(
+    name  = "dnorm2",
+    dpars = c("mu", "sigma"),
+    links = c("identity", "log"),
+    lb    = c(NA, 0),
+    type  = "int"
+  )
+}
+
+#' @rdname dnorm2
+#' @export
+dnorm2_stanvars <- function() {
+  brms::stanvar(block = "functions", scode = dnorm2_stan_funs)
+}
+
+#' Truncated-discrete-normal log-CCDF for use with brms's resp_trunc()
+#' (free location and scale)
+#'
+#' @description
+#' Returns a `brms::stanvar()` defining `dnorm2_lccdf`, the log
+#' complementary CDF of the discrete Normal(mu, sigma) family --
+#' `dnorm2_lccdf(y, mu, sigma)` = log P(Z > y). Same role, calling
+#' convention, and no-threshold-argument rationale as
+#' `dnorm1_lccdf_stanvars()`.
+#'
+#' @return A `brms::stanvars` object defining the `dnorm2_lccdf` Stan
+#'   function, for combining with `dnorm2_stanvars()` via `+`.
+#' @export
+dnorm2_lccdf_stanvars <- function() {
+  brms::stanvar(block = "functions", scode = dnorm2_lccdf_stan)
+}
+
+# --------------------------------------------------------------------------
+# brms interface functions — found by name convention, must be exported
+# --------------------------------------------------------------------------
+
+#' @rdname dnorm2
+#' @export
+#' @keywords internal
+log_lik_dnorm2 <- function(i, prep) {
+  mu    <- brms::get_dpar(prep, "mu", i = i)
+  sigma <- brms::get_dpar(prep, "sigma", i = i)
+  z     <- prep$data$Y[i]
+  # Same z-vs-mean branch as log_lik_dnorm1, but mu varies by draw here
+  # (unlike dnorm1's fixed location 0), so the branch itself must be
+  # vectorised over draws via ifelse(), not a scalar if().
+  ifelse(
+    z >= mu,
+    log(stats::pnorm(z - mu - 0.5, sd = sigma, lower.tail = FALSE) -
+        stats::pnorm(z - mu + 0.5, sd = sigma, lower.tail = FALSE)),
+    log(stats::pnorm(z - mu + 0.5, sd = sigma) - stats::pnorm(z - mu - 0.5, sd = sigma))
+  )
+}
+
+#' @rdname dnorm2
+#' @export
+#' @keywords internal
+posterior_predict_dnorm2 <- function(i, prep, ...) {
+  mu    <- brms::get_dpar(prep, "mu", i = i)
+  sigma <- brms::get_dpar(prep, "sigma", i = i)
+  round(stats::rnorm(length(mu), mean = mu, sd = sigma))
+}
+
+#' @rdname dnorm2
+#' @export
+#' @keywords internal
+posterior_epred_dnorm2 <- function(prep) {
+  brms::get_dpar(prep, "mu")  # E[discrete Normal(mu, sigma)] = mu
 }

@@ -19,7 +19,7 @@ test_that("parameter recovery from simulated hierarchical data", {
   dat           <- data.frame(y = y, group = factor(group))
 
   # brms's default Intercept prior (student_t(3, 0, 2.5)) is documented
-  # (05-04-skellam-laplace-truncation-validation.qmd, "sane_prior") to be
+  # (05-04-candidate-family-validation.qmd, "sane_prior") to be
   # wide enough that this custom Bessel-based likelihood can occasionally
   # wander to a nonsensical log(sigma) region for an unlucky seed -- the
   # exact failure mode hit here after the sigma-reparameterisation changed

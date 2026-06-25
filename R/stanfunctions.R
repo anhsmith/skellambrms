@@ -35,7 +35,18 @@ skellam1_lccdf_stan <- function(normal_approx_threshold = 100) {
     real mu_skellam = square(sigma) / 2;
     if (mu_skellam > %s) {
       real z = (y + 0.5) / sqrt(2 * mu_skellam);
-      return normal_lccdf(z | 0, 1);
+      // NOT normal_lccdf(z | 0, 1): documented Stan limitation, not a
+      // hunch -- the Stan Functions Reference states normal_lccdf
+      // underflows to -inf for (y-mu)/sigma above ~8.25, and
+      // stan-dev/math#1985 confirms normal_lccdf (unlike normal_lcdf)
+      // was never updated with the more accurate Mills-ratio
+      // approximation, so it still hits this floor. Confirmed directly
+      // in this package's own testing: normal_lccdf(9.5|0,1) returns
+      // -inf here vs the true -48.3. Exact closed form instead:
+      // P(Z>z) = 0.5*erfc(z/sqrt(2)), confirmed to match R's pnorm() to
+      // high precision out to z=30+ (erfc() itself does not share
+      // normal_lccdf's accuracy gap).
+      return log(0.5) + log(erfc(z / sqrt(2)));
     }
     real acc = negative_infinity();
     int k = y + 1;
@@ -73,7 +84,7 @@ skellam1_lccdf_stan <- function(normal_approx_threshold = 100) {
 # internal formula exactly (verified against its source).
 skellam2_stan_funs <- "
   real skellam2_lpmf(int k, real mu, real sigmaexcess) {
-    real sigmasq = fabs(mu) + square(sigmaexcess);
+    real sigmasq = abs(mu) + square(sigmaexcess);
     real theta1  = (sigmasq + mu) / 2;
     real theta2  = (sigmasq - mu) / 2;
     return -theta1 - theta2 + (k / 2.0) * log(theta1 / theta2)
@@ -95,14 +106,17 @@ skellam2_lccdf_stan <- function(normal_approx_threshold = 100) {
   sprintf("
   real skellam2_lccdf(int y, real mu, real sigmaexcess) {
     // log P(delta > y).
-    real sigmasq    = fabs(mu) + square(sigmaexcess);
+    real sigmasq    = abs(mu) + square(sigmaexcess);
     real theta1     = (sigmasq + mu) / 2;
     real theta2     = (sigmasq - mu) / 2;
     real mu_skellam = (theta1 + theta2) / 2;
     if (mu_skellam > %s) {
       real sigma = sqrt(sigmasq);
       real z = (y + 0.5 - mu) / sigma;
-      return normal_lccdf(z | 0, 1);
+      // Same documented normal_lccdf limitation and erfc-based exact fix
+      // as skellam1_lccdf_stan above (stan-dev/math#1985) -- see there
+      // for the citation and the confirmed failure point.
+      return log(0.5) + log(erfc(z / sqrt(2)));
     }
     real acc = negative_infinity();
     int k = y + 1;
@@ -189,5 +203,96 @@ dlaplace2_lccdf_stan <- "
   real dlaplace2_lccdf(int y, real mu, real sigma) {
     real b = sigma / sqrt2();
     return log1m_exp(double_exponential_lcdf(y + 0.5 | mu, b));
+  }
+"
+
+# Stan function block for the discrete-normal log-PMF (location fixed at
+# 0, free scale). Discretised from the continuous Normal via CDF
+# differencing -- P(Z=z) = F(z+0.5) - F(z-0.5). Unlike dlaplace1/
+# dlaplace2, no scale conversion is needed first: the continuous
+# normal's own SD *is* sigma (no b-style intermediate parameter), so
+# sigma is passed straight through.
+#
+# NOT simply log_diff_exp(normal_lcdf(z+0.5|0,sigma), normal_lcdf(z-0.5|0,sigma))
+# on both sides -- confirmed that naive form catastrophically cancels
+# once z is far enough into the *positive* tail that normal_lcdf(z-0.5)
+# and normal_lcdf(z+0.5) both round to the same double (both within
+# machine epsilon of log(1)=0), at which point log_diff_exp(a,a) = -inf
+# regardless of how the true (tiny but distinct) difference should come
+# out. This isn't a remote edge case: it was confirmed to occur at only
+# ~10 SDs out for sigma=1 -- inside this package's existing
+# "realistic-but-stressed" test range for the other families (e.g.
+# sigma up to 100, k within 10 SDs; see test-skellam2.R /
+# test-dlaplace1.R). Fixed the same way dlaplace1/dlaplace2's lccdf uses
+# the exact survival form for x>=0 rather than 1-F(x): for z on the far
+# side of the mean (z>=0 here), difference two *survival* values instead
+# of two *CDF* values (both near 1 and hence not distinguishable).
+#
+# The survival values themselves are NOT computed via normal_lccdf,
+# despite that being Stan's built-in upper-tail log-survival function --
+# this is a documented Stan limitation, not a guess: the Stan Functions
+# Reference states normal_lccdf underflows to -inf for
+# (y-mu)/sigma > ~8.25, and stan-dev/math#1985 confirms normal_lccdf
+# (unlike normal_lcdf, which received it) was never updated with the
+# more accurate Mills-ratio approximation, so it still hits this floor.
+# Confirmed directly: normal_lccdf(9.5|0,1) returns -inf here vs the true
+# -48.3. Used instead: P(Z>x) = 0.5*erfc(x/(sigma*sqrt(2))), confirmed to
+# match R's pnorm() to high precision out to 30+ SDs (erfc() does not
+# share normal_lccdf's accuracy gap).
+dnorm1_stan_funs <- "
+  real dnorm1_lpmf(int z, real sigma) {
+    if (z >= 0) {
+      real lo = (z - 0.5) / (sigma * sqrt2());
+      real hi = (z + 0.5) / (sigma * sqrt2());
+      return log(0.5) + log_diff_exp(log(erfc(lo)), log(erfc(hi)));
+    }
+    return log_diff_exp(normal_lcdf(z + 0.5 | 0, sigma), normal_lcdf(z - 0.5 | 0, sigma));
+  }
+"
+
+# Stan function block for the discrete-normal log-CCDF (truncation
+# support via brms's resp_trunc()). NOT normal_lccdf directly -- same
+# documented Stan limitation as dnorm1_lpmf above (stan-dev/math#1985);
+# see there for the citation. Exact closed form via erfc() instead.
+dnorm1_lccdf_stan <- "
+  real dnorm1_lccdf(int y, real sigma) {
+    real z = (y + 0.5) / (sigma * sqrt2());
+    return log(0.5) + log(erfc(z));
+  }
+"
+
+# Stan function block for the discrete-normal log-PMF with free location
+# AND free scale -- no constraint coupling mu and sigma, the same
+# structural contrast with skellam2 already documented for dlaplace2 (see
+# dlaplace2_stan_funs above): the point of having both an asymmetric-
+# Skellam and free-location discrete families is to compare a model where
+# bias and spread are structurally coupled against ones where they are
+# not, so no constraint is imposed here either. mu enters by re-centring
+# before the erfc() argument, since erfc() itself takes no location/scale.
+#
+# Same z>=mu vs z<mu branch as dnorm1_lpmf above (centred on mu rather
+# than 0: the cancellation risk is about which side of the *mean* z
+# falls on, not the sign of z itself), and the same erfc()-based exact
+# survival form in place of the documented-broken normal_lccdf
+# (stan-dev/math#1985, see dnorm1_lpmf above for the citation).
+dnorm2_stan_funs <- "
+  real dnorm2_lpmf(int z, real mu, real sigma) {
+    if (z >= mu) {
+      real lo = (z - mu - 0.5) / (sigma * sqrt2());
+      real hi = (z - mu + 0.5) / (sigma * sqrt2());
+      return log(0.5) + log_diff_exp(log(erfc(lo)), log(erfc(hi)));
+    }
+    return log_diff_exp(normal_lcdf(z + 0.5 | mu, sigma), normal_lcdf(z - 0.5 | mu, sigma));
+  }
+"
+
+# Stan function block for the discrete-normal log-CCDF, free location and
+# scale. Same erfc()-based exact form as dnorm1_lccdf_stan (not
+# normal_lccdf -- stan-dev/math#1985, see dnorm1_lpmf above), generalised
+# to a nonzero mu via re-centring before the erfc() argument.
+dnorm2_lccdf_stan <- "
+  real dnorm2_lccdf(int y, real mu, real sigma) {
+    real z = (y + 0.5 - mu) / (sigma * sqrt2());
+    return log(0.5) + log(erfc(z));
   }
 "

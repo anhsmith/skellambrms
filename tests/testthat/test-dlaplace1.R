@@ -261,7 +261,7 @@ test_that("dlaplace1_stanvars() + dlaplace1_lccdf_stanvars() recovers sigma_true
       stanvars = dlaplace1_stanvars() + dlaplace1_lccdf_stanvars(),
       data     = dat,
       prior    = sane_prior,
-      backend  = "rstan",
+      backend  = "cmdstanr",
       chains   = 2,
       iter     = 800,
       warmup   = 400,
