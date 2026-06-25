@@ -1,6 +1,6 @@
 Package: skellambrms
 Title: Symmetric Skellam Distribution as a brms Custom Family
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: person("Adam N. H.", "Smith", , "anhsmith@gmail.com", role = c("aut", "cre"))
 Description: Provides the symmetric Skellam distribution — the distribution
     of the difference of two independent Poisson random variables with equal

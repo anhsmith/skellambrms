@@ -44,17 +44,42 @@ fit <- brm(
 The family supports arbitrary brms formula syntax including random effects,
 offsets, and non-linear formulas.
 
+## Truncation
+
+`skellam1_lccdf_stanvars()` adds the log-CCDF brms needs to support
+`resp_trunc()`, including a row-varying bound:
+
+```r
+fit <- brm(
+  bf(y | trunc(lb = neg_bound) ~ x),
+  data     = dat,
+  family   = skellam1(),
+  stanvars = skellam1_stanvars() + skellam1_lccdf_stanvars(),
+  chains   = 4
+)
+```
+
+For `mu` above `normal_approx_threshold` (default `100`), the exact
+Bessel-sum tail is replaced by a normal approximation, both for speed and
+to guard against a confirmed crash when an unadapted HMC proposal pushes
+`mu` to an extreme value during warmup. The default was calibrated to one
+project's data (real `mu` topping out around 30); see
+`?skellam1_lccdf_stanvars` for how to choose this for your own data before
+relying on the default elsewhere.
+
 ## Functions
 
 | Function | Purpose |
 |---|---|
 | `skellam1()` | Custom family object for use in `brm()` |
 | `skellam1_stanvars()` | Stan code block for use in `brm()` |
+| `skellam1_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support |
 
 ## Scope
 
 This package implements the symmetric case Skellam(μ, μ) only. The asymmetric 
-case (μ₁ ≠ μ₂) is out of scope.
+case (μ₁ ≠ μ₂) is out of scope. `skellam1_lccdf_stanvars()` adds truncation
+support to this same symmetric family — it is not a new family.
 
 ## Reference
 
