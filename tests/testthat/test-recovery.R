@@ -6,16 +6,25 @@ test_that("parameter recovery from simulated hierarchical data", {
 
   set.seed(42)
 
-  n_groups          <- 10L
-  n_obs_per_group   <- 20L
-  true_mu_intercept <- log(3)
-  true_sigma_group  <- 0.5
+  n_groups             <- 10L
+  n_obs_per_group       <- 20L
+  true_sigma_intercept  <- log(3)
+  true_sigma_group      <- 0.5
 
   group_effects <- rnorm(n_groups, mean = 0, sd = true_sigma_group)
   group         <- rep(seq_len(n_groups), each = n_obs_per_group)
-  mu_i          <- exp(true_mu_intercept + group_effects[group])
+  sigma_i       <- exp(true_sigma_intercept + group_effects[group])
+  mu_i          <- sigma_i^2 / 2
   y             <- skellam::rskellam(length(mu_i), lambda1 = mu_i, lambda2 = mu_i)
   dat           <- data.frame(y = y, group = factor(group))
+
+  # brms's default Intercept prior (student_t(3, 0, 2.5)) is documented
+  # (05-04-skellam-laplace-truncation-validation.qmd, "sane_prior") to be
+  # wide enough that this custom Bessel-based likelihood can occasionally
+  # wander to a nonsensical log(sigma) region for an unlucky seed -- the
+  # exact failure mode hit here after the sigma-reparameterisation changed
+  # what data this fixed seed simulates. Applying that same documented fix.
+  sane_prior <- brms::prior(normal(1, 1.5), class = "Intercept")
 
   suppressMessages({
     fit <- brms::brm(
@@ -23,6 +32,7 @@ test_that("parameter recovery from simulated hierarchical data", {
       data     = dat,
       family   = skellam1(),
       stanvars = skellam1_stanvars(),
+      prior    = sane_prior,
       chains   = 4,
       iter     = 2000,
       warmup   = 1000,
@@ -33,11 +43,11 @@ test_that("parameter recovery from simulated hierarchical data", {
 
   draws <- as.data.frame(fit)
 
-  # 1. True mu_intercept within 90% posterior CI for intercept
+  # 1. True sigma_intercept (log(sigma) scale) within 90% posterior CI
   intercept_q <- quantile(draws[["b_Intercept"]], c(0.05, 0.95))
   expect_true(
-    true_mu_intercept >= intercept_q[[1]] && true_mu_intercept <= intercept_q[[2]],
-    label = paste0("true intercept = ", round(true_mu_intercept, 3),
+    true_sigma_intercept >= intercept_q[[1]] && true_sigma_intercept <= intercept_q[[2]],
+    label = paste0("true intercept = ", round(true_sigma_intercept, 3),
                    ", 90% CI: [", round(intercept_q[[1]], 3),
                    ", ",          round(intercept_q[[2]], 3), "]")
   )
