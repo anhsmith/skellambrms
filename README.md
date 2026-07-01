@@ -1,19 +1,77 @@
 # skellambrms
 
-A [brms](https://paul-buerkner.github.io/brms/) custom family for the symmetric 
-Skellam distribution — the distribution of the difference of two independent 
-Poisson random variables with equal rates.
+Custom [brms](https://paul-buerkner.github.io/brms/) families for modelling
+integer-valued differences on ℤ — the outcome of subtracting one paired
+count from another.
 
 ## Background
 
-If X ~ Poisson(μ) and Y ~ Poisson(μ) independently, then X − Y ~ Skellam(μ, μ), 
-with mean zero and variance 2μ. This arises naturally when modelling set-level 
-differences between paired count sources (e.g. two independent observers of the 
-same process).
+Many count-comparison problems produce a response that is an integer, but
+can be negative: the difference between two observers' counts of the same
+event, the goal difference between two teams, or any other set-level
+difference between two paired count sources. Standard `brms` count
+families (Poisson, negative binomial, ...) don't support a `Z`-valued
+response.
 
-The single parameter μ (modelled on the log scale) controls dispersion, not 
-location. The expected value of the response is always zero regardless of 
-covariates; covariates explain variation in *spread*.
+This package provides six custom `brms` families, built around three
+distributional families:
+
+- **Skellam** — the distribution of the difference of two independent
+  Poisson random variables.
+- **Discrete Laplace** — a Laplace distribution discretised onto the
+  integers via CDF differencing.
+- **Discrete normal** — a normal distribution discretised the same way.
+
+Each of the three is available in two parameterisations: one with the mean
+fixed at zero (for testing whether two sources agree on average) and one
+with a free mean (for quantifying systematic disagreement), giving six
+families in total — `skellam1`/`skellam2`, `dlaplace1`/`dlaplace2`, and
+`dnorm1`/`dnorm2`. All six are sampled on a common (mean, SD-scale) spread
+convention, and all support truncation via `brms`'s `resp_trunc()`.
+
+## Families
+
+| Family | Mean | Spread parameter | Mean–spread coupling |
+|---|---|---|---|
+| `skellam1()` | fixed at 0 | `sigma` (log link) | none exposed to the user; internally `theta1 = theta2 = sigma^2/2` |
+| `skellam2()` | free, `mu` (identity link) | `sigmaexcess` (log link) | `sigma^2 = |mu| + sigmaexcess^2` — the genuine Skellam validity constraint (`theta1, theta2 >= 0`); reduces exactly to `skellam1()` at `mu = 0` |
+| `dlaplace1()` | fixed at 0 | `sigma` (log link) | none |
+| `dlaplace2()` | free, `mu` (identity link) | `sigma` (log link) | none — deliberately decoupled from `mu` |
+| `dnorm1()` | fixed at 0 | `sigma` (log link) | none |
+| `dnorm2()` | free, `mu` (identity link) | `sigma` (log link) | none — deliberately decoupled from `mu` |
+
+`skellam1`, `dlaplace1`, and `dnorm1` fix the mean at zero and estimate a
+single spread parameter, `sigma` — the SD of the response — on the log
+scale. `skellam2`, `dlaplace2`, and `dnorm2` additionally estimate a free
+mean `mu` on the identity scale.
+
+For `skellam2()`, `sigma` and `mu` are not free: `sigma^2 = |mu| +
+sigmaexcess^2` guarantees the underlying Poisson rates `theta1 =
+(sigma^2 + mu)/2` and `theta2 = (sigma^2 - mu)/2` are both non-negative for
+every `mu` and every `sigmaexcess >= 0` — the actual Skellam constraint
+(variance ≥ |mean|). This is a genuine structural coupling: a Skellam
+difference with a large mean *must* also have large variance. The discrete
+Laplace and discrete normal families have no such constraint — `mu` and
+`sigma` are free, independent parameters throughout. Comparing `skellam2()`
+against `dlaplace2()`/`dnorm2()` lets you test whether bias and spread are
+structurally coupled in your data or vary independently.
+
+### A naming quirk to be aware of
+
+`brms::custom_family()` unconditionally requires one `dpars` entry to be
+literally named `"mu"`. For `skellam1()`, `dlaplace1()`, and `dnorm1()`,
+that forced `"mu"` dpar is actually `sigma` — the mean is structurally
+zero and isn't represented as a dpar at all. If you inspect
+`brms::make_stancode()` output or call `brms::get_dpar(prep, "mu")` for one
+of these three families, you're looking at `sigma`, not a mean. All R-side
+functions in this package immediately rebind that dpar to a variable
+called `sigma`, so nothing else in the package (or in this README) ever
+calls it `mu`. `skellam2()`, `dlaplace2()`, and `dnorm2()` don't have this
+issue — their `mu` genuinely is the mean.
+
+Separately, `skellam2()`'s excess-spread parameter is spelled
+`sigmaexcess`, not `sigma_excess`: `brms::custom_family()` disallows dots
+and underscores in `dpars` names.
 
 ## Installation
 
@@ -22,66 +80,196 @@ covariates; covariates explain variation in *spread*.
 pak::pak("anhsmith/skellambrms")
 ```
 
-Stan and a C++ toolchain are required. On Windows, install 
-[Rtools45](https://cran.r-project.org/bin/windows/Rtools/rtools45/rtools.html). 
+Stan and a C++ toolchain are required. On Windows, install
+[Rtools45](https://cran.r-project.org/bin/windows/Rtools/rtools45/rtools.html).
 Works with either rstan or cmdstanr as the brms backend.
 
 ## Usage
+
+Every family follows the same pattern: pass `family = <family>()` and
+`stanvars = <family>_stanvars()` to `brm()`. Add `<family>_lccdf_stanvars()`
+to `stanvars` (combined via `+`) to also support truncation through
+`resp_trunc()`.
+
+### Skellam
 
 ```r
 library(brms)
 library(skellambrms)
 
-fit <- brm(
-  y ~ 1 + x + (1 | group),
-  data     = dat,
-  family   = skellam1(),
-  stanvars = skellam1_stanvars(),
-  chains   = 4
-)
-```
-
-The family supports arbitrary brms formula syntax including random effects,
-offsets, and non-linear formulas.
-
-## Truncation
-
-`skellam1_lccdf_stanvars()` adds the log-CCDF brms needs to support
-`resp_trunc()`, including a row-varying bound:
-
-```r
-fit <- brm(
-  bf(y | trunc(lb = neg_bound) ~ x),
+# skellam1(): mean fixed at 0 -- do two sources agree on average?
+fit1 <- brm(
+  bf(delta | trunc(lb = neg_bound) ~ 1 + (1 | group)),
   data     = dat,
   family   = skellam1(),
   stanvars = skellam1_stanvars() + skellam1_lccdf_stanvars(),
   chains   = 4
 )
+
+# skellam2(): free mean -- how large and how uncertain is the disagreement?
+fit2 <- brm(
+  bf(delta | trunc(lb = neg_bound) ~ 1 + x, sigmaexcess ~ 1),
+  data     = dat,
+  family   = skellam2(),
+  stanvars = skellam2_stanvars() + skellam2_lccdf_stanvars(),
+  chains   = 4
+)
 ```
 
-For `mu` above `normal_approx_threshold` (default `100`), the exact
-Bessel-sum tail is replaced by a normal approximation, both for speed and
-to guard against a confirmed crash when an unadapted HMC proposal pushes
-`mu` to an extreme value during warmup. The default was calibrated to one
-project's data (real `mu` topping out around 30); see
-`?skellam1_lccdf_stanvars` for how to choose this for your own data before
-relying on the default elsewhere.
+### Discrete Laplace
+
+```r
+# dlaplace1(): mean fixed at 0
+fit3 <- brm(
+  bf(delta | trunc(lb = neg_bound) ~ 1 + (1 | group)),
+  data     = dat,
+  family   = dlaplace1(),
+  stanvars = dlaplace1_stanvars() + dlaplace1_lccdf_stanvars(),
+  chains   = 4
+)
+
+# dlaplace2(): free mean and free scale, structurally uncoupled
+fit4 <- brm(
+  bf(delta | trunc(lb = neg_bound) ~ 1 + x, sigma ~ 1),
+  data     = dat,
+  family   = dlaplace2(),
+  stanvars = dlaplace2_stanvars() + dlaplace2_lccdf_stanvars(),
+  chains   = 4
+)
+```
+
+### Discrete normal
+
+```r
+# dnorm1(): mean fixed at 0
+fit5 <- brm(
+  bf(delta | trunc(lb = neg_bound) ~ 1 + (1 | group)),
+  data     = dat,
+  family   = dnorm1(),
+  stanvars = dnorm1_stanvars() + dnorm1_lccdf_stanvars(),
+  chains   = 4
+)
+
+# dnorm2(): free mean and free scale, structurally uncoupled
+fit6 <- brm(
+  bf(delta | trunc(lb = neg_bound) ~ 1 + x, sigma ~ 1),
+  data     = dat,
+  family   = dnorm2(),
+  stanvars = dnorm2_stanvars() + dnorm2_lccdf_stanvars(),
+  chains   = 4
+)
+```
+
+`neg_bound` in these examples is a column giving a (possibly row-varying)
+lower truncation bound, e.g. `-y_lb` where `y_lb` is how far below zero the
+response could plausibly have gone for that row. All families support
+arbitrary `brms` formula syntax, including random effects, non-linear
+predictors on the spread dpars, and (for the free-mean families) on `mu`
+too.
+
+## Truncation
+
+Each family exports a `<family>_lccdf_stanvars()` function that adds a
+`brms::stanvar()` defining a Stan function named `<family>_lccdf` — the log
+complementary CDF, `log P(Z > y)`. `brms`'s `resp_trunc()` machinery finds
+this function purely by name convention (`<family>_lccdf`, matching the
+family name) and uses it to compute the log-normalisation constant for the
+truncated likelihood, including a row-varying lower bound. No further
+wiring is required beyond adding the stanvar to your `stanvars` argument,
+as shown above.
+
+For `skellam1()` and `skellam2()`, the exact log-CCDF is an iterative
+tail-sum over the Bessel-function PMF. Above a configurable
+`normal_approx_threshold` (default `100`, measured on the underlying
+`mu_skellam` scale — `sigma^2/2` for `skellam1()`, `(theta1 + theta2)/2`
+for `skellam2()`), this exact sum is replaced by a normal approximation.
+This guards against two confirmed numerical failure modes that can occur
+during HMC warmup, when an unadapted proposal pushes the spread parameter
+to an extreme value (the log link places no ceiling on it): a crash from
+evaluating the Bessel function at an enormous order, and a much slower
+blow-up in cost and memory when many rows within a single deep NUTS tree
+each hit the expensive exact loop. Read `?skellam1_lccdf_stanvars` and the
+comments in `R/family.R` for the full rationale and guidance on choosing a
+threshold appropriate to your own data's scale.
+
+`dlaplace1()`/`dlaplace2()` and `dnorm1()`/`dnorm2()` have closed-form
+log-CCDFs (built on `double_exponential_lcdf` for the Laplace families and
+an exact `erfc()`-based survival function for the normal families), so
+their `_lccdf_stanvars()` functions take no threshold argument — there is
+no large-argument failure mode to guard against.
+
+## Testing
+
+The test suite (`tests/testthat/`) validates, for every family:
+
+- The R-side log-PMF and log-CCDF against a trusted external reference —
+  `skellam::dskellam()`/`pskellam()` for the Skellam families, and a
+  hand-derived, numerically stable log-space CDF-differencing reference for
+  the discrete Laplace and discrete normal families (`extraDistr::ddlaplace()`
+  was checked and found to implement a *different* discrete Laplace, so it
+  isn't usable as a reference).
+- That the PMF sums to 1 across a grid of parameter values.
+- Numerical stability (no `NaN`/`Inf`) across a "realistic-but-stressed"
+  range of parameter values, including deep into the tails.
+- That the Stan implementations of the log-PMF and log-CCDF agree with the
+  R-side references, once exposed via `rstan::expose_stan_functions()`.
+- For `skellam1()`/`skellam2()`, that the exact and normal-approximation
+  branches of the log-CCDF agree closely at the threshold seam, and that
+  changing `normal_approx_threshold` actually moves the cutover point.
+- Structural (not rejection-based) enforcement of validity constraints, by
+  inspecting `brms::make_stancode()` output directly: `skellam2()`'s
+  `theta1, theta2 >= 0` constraint and `dlaplace2()`/`dnorm2()`'s lack of
+  any constraint coupling `mu` and `sigma`.
+- That the free-mean families (`skellam2()`, `dlaplace2()`, `dnorm2()`)
+  reduce exactly to their fixed-mean counterparts at `mu = 0`.
+- End-to-end parameter recovery: fitting each family with `brm()` (using
+  `cmdstanr`) to simulated data — including truncated data via
+  `resp_trunc()` — and checking that the true generating parameters fall
+  within the posterior credible interval, alongside divergence and Rhat
+  checks.
 
 ## Functions
 
 | Function | Purpose |
 |---|---|
-| `skellam1()` | Custom family object for use in `brm()` |
-| `skellam1_stanvars()` | Stan code block for use in `brm()` |
-| `skellam1_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support |
+| `skellam1()` | Custom family object for `skellam1` (mean fixed at 0) |
+| `skellam1_stanvars()` | Stan code block for `skellam1` |
+| `skellam1_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `skellam1` |
+| `skellam2()` | Custom family object for `skellam2` (free mean) |
+| `skellam2_stanvars()` | Stan code block for `skellam2` |
+| `skellam2_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `skellam2` |
+| `skellam2_dpars()` | Reports `mu`, `sigma`, `sigmasq`, `theta1`, `theta2` from a fitted `skellam2()` model, computed in R via `get_dpar()` |
+| `dlaplace1()` | Custom family object for `dlaplace1` (mean fixed at 0) |
+| `dlaplace1_stanvars()` | Stan code block for `dlaplace1` |
+| `dlaplace1_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `dlaplace1` |
+| `dlaplace2()` | Custom family object for `dlaplace2` (free mean and scale) |
+| `dlaplace2_stanvars()` | Stan code block for `dlaplace2` |
+| `dlaplace2_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `dlaplace2` |
+| `dnorm1()` | Custom family object for `dnorm1` (mean fixed at 0) |
+| `dnorm1_stanvars()` | Stan code block for `dnorm1` |
+| `dnorm1_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `dnorm1` |
+| `dnorm2()` | Custom family object for `dnorm2` (free mean and scale) |
+| `dnorm2_stanvars()` | Stan code block for `dnorm2` |
+| `dnorm2_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `dnorm2` |
 
-## Scope
+Each family also exports `log_lik_<family>()`, `posterior_predict_<family>()`,
+and `posterior_epred_<family>()` — the standard `brms` custom-family
+interface functions, located by `brms` via name convention and not normally
+called directly.
 
-This package implements the symmetric case Skellam(μ, μ) only. The asymmetric 
-case (μ₁ ≠ μ₂) is out of scope. `skellam1_lccdf_stanvars()` adds truncation
-support to this same symmetric family — it is not a new family.
+## References
 
-## Reference
+Skellam JG (1946) The Frequency Distribution of the Difference Between Two
+Poisson Variates Belonging to Different Populations. *Journal of the Royal
+Statistical Society* 109:296.
 
-Karlis, D. & Ntzoufras, I. (2006). Bayesian analysis of the differences of count 
-data. *Statistics in Medicine*, 25, 1885–1905.
+Karlis D, Ntzoufras I (2003) Analysis of Sports Data by Using Bivariate
+Poisson Models. *Journal of the Royal Statistical Society: Series D (The
+Statistician)* 52:381–393.
+
+Karlis D, Ntzoufras I (2006) Bayesian Analysis of the Differences of Count
+Data. *Statistics in Medicine* 25:1885–1905.
+
+Karlis D, Michels R, Ötting M (2026) Modelling Handball Outcomes Using
+Univariate and Bivariate Approaches. *Statistical Methods & Applications*
+35:263–284.
