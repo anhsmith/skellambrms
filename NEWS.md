@@ -1,3 +1,36 @@
+# skellambrms 0.3.1
+
+* Fixed `posterior_predict_<family>()` for all six families: previously
+  ignored `trunc()`/`resp_trunc()` bounds entirely, drawing from the
+  untruncated distribution and returning it verbatim (confirmed to produce
+  out-of-bound draws, e.g. `posterior_predict_dnorm2()` returning values
+  well below a `lb = -14` bound). Now performs correct inverse-CDF sampling
+  within the truncation bounds, reusing each family's already-validated
+  log-CCDF math (transcribed to R in the new internal `R/truncation.R`)
+  rather than rejection sampling, which was confirmed empirically
+  slow/low-acceptance for tight bounds — especially costly for
+  `skellam2()`, whose per-evaluation cost (an iterative Bessel-function
+  tail-sum) is comparatively high.
+* Fixed `posterior_epred_<family>()` for all six families: previously
+  returned the untruncated mean (`mu`, or `0` for `skellam1()`/
+  `dlaplace1()`/`dnorm1()`) even when a truncation bound was tight enough
+  to meaningfully shift the conditional expectation, with no warning. Now
+  computes the correct truncated conditional expectation via deterministic
+  numerical summation of the truncated PMF — not Monte Carlo, so the
+  result is exact to a documented tolerance and fully reproducible.
+* **Known limitation surfaced (not introduced) by this fix:**
+  `brms::posterior_epred()` — and anything built on it, including
+  `fitted()` and `conditional_effects()` — errors on any truncated fit of
+  a custom family, for all six families here, under the currently
+  installed `brms`. This is a `brms` limitation: its internal dispatcher
+  checks whether a fit is truncated *before* checking whether the family
+  is a custom one, and has no fallback to a custom family's own
+  `posterior_epred_<family>()` on the truncated branch. Call
+  `posterior_epred_<family>(brms::prepare_predictions(fit))` directly as a
+  workaround. `brms::posterior_predict()` is unaffected and works
+  correctly for truncated fits of every family. See the README's
+  "Limitations" section for details.
+
 # skellambrms 0.3.0
 
 * **Breaking change:** `skellam1()` now samples on `sigma`, the SD of the

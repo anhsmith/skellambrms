@@ -271,4 +271,99 @@ test_that("dnorm1_stanvars() + dnorm1_lccdf_stanvars() recovers sigma_true under
                    ", 95% CI: [", round(sigma_q[[1]], 3),
                    ", ", round(sigma_q[[2]], 3), "]")
   )
+
+  # Extend the existing fit (no new brm() call) to also check that
+  # posterior_predict()/posterior_epred() honour resp_trunc()'s bounds --
+  # confirms the R-side truncation fix works through the full brms
+  # dispatch path, not just the synthetic-prep unit tests below.
+  pp <- brms::posterior_predict(fit)
+  expect_true(all(sweep(pp, 2, dat$neg_bound, `>=`)),
+              label = "posterior_predict draws below their row's trunc(lb=) bound")
+
+  # brms::posterior_epred() itself cannot be used here -- see the matching
+  # comment in test-lccdf.R for the confirmed brms-level reason
+  # (posterior_epred.brmsprep() unconditionally routes truncated fits to
+  # posterior_epred_trunc(), which has no generic handler for ANY custom
+  # family and always errors, independent of this package's own fix).
+  prep <- brms::prepare_predictions(fit)
+  ep   <- posterior_epred_dnorm1(prep)
+  expect_true(all(is.finite(ep)))
+  expect_true(all(sweep(ep, 2, dat$neg_bound, `>=`)),
+              label = "posterior_epred below the row's trunc(lb=) bound")
+})
+
+# -----------------------------------------------------------------------
+# posterior_predict / posterior_epred truncation correctness (synthetic prep)
+# -----------------------------------------------------------------------
+
+test_that("posterior_predict_dnorm1 respects lb (repro of confirmed bug)", {
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(4, nrow = 3000, ncol = 1)),
+    Y = 0, lb = -3
+  )
+  set.seed(123)
+  draws <- posterior_predict_dnorm1(1, prep)
+  expect_true(all(draws >= -3), label = paste0("min draw = ", min(draws)))
+})
+
+test_that("posterior_predict_dnorm1 without lb/ub matches untruncated behaviour (fast path)", {
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(4, nrow = 5000, ncol = 1)),
+    Y = 0
+  )
+  set.seed(1)
+  draws <- posterior_predict_dnorm1(1, prep)
+  expect_true(is.numeric(draws) && length(draws) == 5000)
+  expect_true(min(draws) < -5)
+})
+
+test_that("posterior_predict_dnorm1 draws match the truncated PMF distributionally", {
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(4, nrow = 20000, ncol = 1)),
+    Y = 0, lb = -5, ub = 8
+  )
+  set.seed(42)
+  draws <- posterior_predict_dnorm1(1, prep)
+  expect_true(all(draws >= -5 & draws <= 8))
+
+  support <- -5:8
+  probs <- exp(dnorm1_lpmf_r(support, 4))
+  probs <- probs / sum(probs)
+  emp <- as.numeric(table(factor(draws, levels = support))) / length(draws)
+  expect_lt(max(abs(emp - probs)), 0.02)
+})
+
+test_that("posterior_epred_dnorm1 differs from untruncated mean (0) when lb is tight", {
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(4, nrow = 5, ncol = 1)),
+    Y = 0, lb = -3
+  )
+  epred <- posterior_epred_dnorm1(prep)
+  expect_equal(dim(epred), c(5, 1))
+  expect_true(all(epred[, 1] > 0), label = paste0("epred = ", epred[1, 1]))
+})
+
+test_that("posterior_epred_dnorm1 matches brute-force truncated mean", {
+  sigma_val <- 4; lb_val <- -3
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(sigma_val, nrow = 1, ncol = 1)),
+    Y = 0, lb = lb_val
+  )
+  epred <- posterior_epred_dnorm1(prep)
+
+  support <- lb_val:round(10 * sigma_val)
+  probs <- exp(dnorm1_lpmf_r(support, sigma_val))
+  probs <- probs / sum(probs)
+  brute_force_mean <- sum(support * probs)
+
+  expect_equal(epred[1, 1], brute_force_mean, tolerance = 1e-6)
+})
+
+test_that("posterior_epred_dnorm1 leaves untruncated observations exactly at 0 (no regression)", {
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(c(4, 6), nrow = 2, ncol = 2)),
+    Y = c(0, 0)
+  )
+  epred <- posterior_epred_dnorm1(prep)
+  expect_equal(epred, 0 * prep$dpars$mu)
 })

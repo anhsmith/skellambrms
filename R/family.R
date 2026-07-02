@@ -163,7 +163,13 @@ log_lik_skellam1 <- function(i, prep) {
 posterior_predict_skellam1 <- function(i, prep, ...) {
   sigma <- brms::get_dpar(prep, "mu", i = i)  # brms dpar name "mu" is sigma here -- see skellam1() Details
   mu    <- sigma^2 / 2
-  skellam::rskellam(length(mu), lambda1 = mu, lambda2 = mu)
+  lb <- .get_bound(prep, "lb", i)
+  ub <- .get_bound(prep, "ub", i)
+  if (!is.finite(lb) && !is.finite(ub)) {
+    return(skellam::rskellam(length(mu), lambda1 = mu, lambda2 = mu))
+  }
+  u <- stats::runif(length(sigma))
+  .invert_truncated_cdf(function(y, idx) skellam1_lccdf_r(y, sigma[idx]), u, lb, ub)
 }
 
 #' @rdname skellam1
@@ -171,7 +177,19 @@ posterior_predict_skellam1 <- function(i, prep, ...) {
 #' @keywords internal
 posterior_epred_skellam1 <- function(prep) {
   sigma <- brms::get_dpar(prep, "mu")  # brms dpar name "mu" is sigma here -- see skellam1() Details
-  0 * sigma  # E[Skellam(mu, mu)] = 0; preserves draw x obs matrix dimensions
+  out <- 0 * sigma  # E[Skellam(mu, mu)] = 0; preserves draw x obs matrix dimensions
+  lb_full <- prep$data$lb; ub_full <- prep$data$ub
+  if (is.null(lb_full) && is.null(ub_full)) return(out)
+  nobs <- ncol(sigma)
+  lb_obs <- .get_bound(prep, "lb", seq_len(nobs))
+  ub_obs <- .get_bound(prep, "ub", seq_len(nobs))
+  trunc_obs <- which(is.finite(lb_obs) | is.finite(ub_obs))
+  if (length(trunc_obs) == 0) return(out)
+  for (j in trunc_obs) {
+    lpmf <- function(y, idx) skellam1_lpmf_r(y, sigma[idx, j])
+    out[, j] <- .truncated_mean_by_sum(lpmf, lb_obs[j], ub_obs[j], center = rep(0, nrow(sigma)))
+  }
+  out
 }
 
 # ==========================================================================
@@ -339,17 +357,39 @@ log_lik_skellam2 <- function(i, prep) {
 posterior_predict_skellam2 <- function(i, prep, ...) {
   mu          <- brms::get_dpar(prep, "mu", i = i)
   sigmaexcess <- brms::get_dpar(prep, "sigmaexcess", i = i)
-  sigmasq <- abs(mu) + sigmaexcess^2
-  theta1  <- (sigmasq + mu) / 2
-  theta2  <- (sigmasq - mu) / 2
-  skellam::rskellam(length(mu), lambda1 = theta1, lambda2 = theta2)
+  lb <- .get_bound(prep, "lb", i)
+  ub <- .get_bound(prep, "ub", i)
+  if (!is.finite(lb) && !is.finite(ub)) {
+    sigmasq <- abs(mu) + sigmaexcess^2
+    theta1  <- (sigmasq + mu) / 2
+    theta2  <- (sigmasq - mu) / 2
+    return(skellam::rskellam(length(mu), lambda1 = theta1, lambda2 = theta2))
+  }
+  u <- stats::runif(length(mu))
+  .invert_truncated_cdf(
+    function(y, idx) skellam2_lccdf_r(y, mu[idx], sigmaexcess[idx]), u, lb, ub
+  )
 }
 
 #' @rdname skellam2
 #' @export
 #' @keywords internal
 posterior_epred_skellam2 <- function(prep) {
-  brms::get_dpar(prep, "mu")  # E[Skellam(theta1, theta2)] = theta1 - theta2 = mu
+  mu  <- brms::get_dpar(prep, "mu")  # E[Skellam(theta1, theta2)] = theta1 - theta2 = mu
+  out <- mu
+  lb_full <- prep$data$lb; ub_full <- prep$data$ub
+  if (is.null(lb_full) && is.null(ub_full)) return(out)
+  sigmaexcess <- brms::get_dpar(prep, "sigmaexcess")
+  nobs <- ncol(mu)
+  lb_obs <- .get_bound(prep, "lb", seq_len(nobs))
+  ub_obs <- .get_bound(prep, "ub", seq_len(nobs))
+  trunc_obs <- which(is.finite(lb_obs) | is.finite(ub_obs))
+  if (length(trunc_obs) == 0) return(out)
+  for (j in trunc_obs) {
+    lpmf <- function(y, idx) skellam2_lpmf_r(y, mu[idx, j], sigmaexcess[idx, j])
+    out[, j] <- .truncated_mean_by_sum(lpmf, lb_obs[j], ub_obs[j], center = mu[, j])
+  }
+  out
 }
 
 # ==========================================================================
@@ -452,13 +492,19 @@ log_lik_dlaplace1 <- function(i, prep) {
 posterior_predict_dlaplace1 <- function(i, prep, ...) {
   sigma <- brms::get_dpar(prep, "mu", i = i)  # brms dpar name "mu" is sigma here -- see Details
   b     <- sigma / sqrt(2)
-  # Difference of two iid Exponential(rate = 1/b) draws is Laplace(0, b)
-  # exactly (the discrete-Laplace analogue of skellam's "difference of
-  # two iid Poissons"); rounding a continuous Laplace(0,b) draw to the
-  # nearest integer reproduces this family's CDF-differenced PMF exactly,
-  # since P(round(X)=z) = P(z-0.5 <= X < z+0.5) = F(z+0.5) - F(z-0.5).
-  n <- length(b)
-  round(stats::rexp(n, rate = 1 / b) - stats::rexp(n, rate = 1 / b))
+  lb <- .get_bound(prep, "lb", i)
+  ub <- .get_bound(prep, "ub", i)
+  if (!is.finite(lb) && !is.finite(ub)) {
+    # Difference of two iid Exponential(rate = 1/b) draws is Laplace(0, b)
+    # exactly (the discrete-Laplace analogue of skellam's "difference of
+    # two iid Poissons"); rounding a continuous Laplace(0,b) draw to the
+    # nearest integer reproduces this family's CDF-differenced PMF exactly,
+    # since P(round(X)=z) = P(z-0.5 <= X < z+0.5) = F(z+0.5) - F(z-0.5).
+    n <- length(b)
+    return(round(stats::rexp(n, rate = 1 / b) - stats::rexp(n, rate = 1 / b)))
+  }
+  u <- stats::runif(length(sigma))
+  .invert_truncated_cdf(function(y, idx) dlaplace1_lccdf_r(y, sigma[idx]), u, lb, ub)
 }
 
 #' @rdname dlaplace1
@@ -466,7 +512,19 @@ posterior_predict_dlaplace1 <- function(i, prep, ...) {
 #' @keywords internal
 posterior_epred_dlaplace1 <- function(prep) {
   sigma <- brms::get_dpar(prep, "mu")  # brms dpar name "mu" is sigma here -- see Details
-  0 * sigma  # E[discrete Laplace(0, sigma)] = 0; preserves draw x obs matrix dimensions
+  out <- 0 * sigma  # E[discrete Laplace(0, sigma)] = 0; preserves draw x obs matrix dimensions
+  lb_full <- prep$data$lb; ub_full <- prep$data$ub
+  if (is.null(lb_full) && is.null(ub_full)) return(out)
+  nobs <- ncol(sigma)
+  lb_obs <- .get_bound(prep, "lb", seq_len(nobs))
+  ub_obs <- .get_bound(prep, "ub", seq_len(nobs))
+  trunc_obs <- which(is.finite(lb_obs) | is.finite(ub_obs))
+  if (length(trunc_obs) == 0) return(out)
+  for (j in trunc_obs) {
+    lpmf <- function(y, idx) dlaplace1_lpmf_r(y, sigma[idx, j])
+    out[, j] <- .truncated_mean_by_sum(lpmf, lb_obs[j], ub_obs[j], center = rep(0, nrow(sigma)))
+  }
+  out
 }
 
 # ==========================================================================
@@ -565,15 +623,35 @@ posterior_predict_dlaplace2 <- function(i, prep, ...) {
   mu    <- brms::get_dpar(prep, "mu", i = i)
   sigma <- brms::get_dpar(prep, "sigma", i = i)
   b     <- sigma / sqrt(2)
-  n     <- length(mu)
-  round(mu + stats::rexp(n, rate = 1 / b) - stats::rexp(n, rate = 1 / b))
+  lb <- .get_bound(prep, "lb", i)
+  ub <- .get_bound(prep, "ub", i)
+  if (!is.finite(lb) && !is.finite(ub)) {
+    n <- length(mu)
+    return(round(mu + stats::rexp(n, rate = 1 / b) - stats::rexp(n, rate = 1 / b)))
+  }
+  u <- stats::runif(length(mu))
+  .invert_truncated_cdf(function(y, idx) dlaplace2_lccdf_r(y, mu[idx], sigma[idx]), u, lb, ub)
 }
 
 #' @rdname dlaplace2
 #' @export
 #' @keywords internal
 posterior_epred_dlaplace2 <- function(prep) {
-  brms::get_dpar(prep, "mu")  # E[discrete Laplace(mu, sigma)] = mu
+  mu  <- brms::get_dpar(prep, "mu")  # E[discrete Laplace(mu, sigma)] = mu
+  out <- mu
+  lb_full <- prep$data$lb; ub_full <- prep$data$ub
+  if (is.null(lb_full) && is.null(ub_full)) return(out)
+  sigma <- brms::get_dpar(prep, "sigma")
+  nobs <- ncol(mu)
+  lb_obs <- .get_bound(prep, "lb", seq_len(nobs))
+  ub_obs <- .get_bound(prep, "ub", seq_len(nobs))
+  trunc_obs <- which(is.finite(lb_obs) | is.finite(ub_obs))
+  if (length(trunc_obs) == 0) return(out)
+  for (j in trunc_obs) {
+    lpmf <- function(y, idx) dlaplace2_lpmf_r(y, mu[idx, j], sigma[idx, j])
+    out[, j] <- .truncated_mean_by_sum(lpmf, lb_obs[j], ub_obs[j], center = mu[, j])
+  }
+  out
 }
 
 # ==========================================================================
@@ -692,10 +770,16 @@ log_lik_dnorm1 <- function(i, prep) {
 #' @keywords internal
 posterior_predict_dnorm1 <- function(i, prep, ...) {
   sigma <- brms::get_dpar(prep, "mu", i = i)  # brms dpar name "mu" is sigma here -- see Details
-  # P(round(X)=z) = P(z-0.5 <= X < z+0.5) = F(z+0.5) - F(z-0.5) for
-  # X ~ Normal(0, sigma) reproduces this family's CDF-differenced PMF
-  # exactly, the same rounding identity used in posterior_predict_dlaplace1.
-  round(stats::rnorm(length(sigma), mean = 0, sd = sigma))
+  lb <- .get_bound(prep, "lb", i)
+  ub <- .get_bound(prep, "ub", i)
+  if (!is.finite(lb) && !is.finite(ub)) {
+    # P(round(X)=z) = P(z-0.5 <= X < z+0.5) = F(z+0.5) - F(z-0.5) for
+    # X ~ Normal(0, sigma) reproduces this family's CDF-differenced PMF
+    # exactly, the same rounding identity used in posterior_predict_dlaplace1.
+    return(round(stats::rnorm(length(sigma), mean = 0, sd = sigma)))
+  }
+  u <- stats::runif(length(sigma))
+  .invert_truncated_cdf(function(y, idx) dnorm1_lccdf_r(y, sigma[idx]), u, lb, ub)
 }
 
 #' @rdname dnorm1
@@ -703,7 +787,19 @@ posterior_predict_dnorm1 <- function(i, prep, ...) {
 #' @keywords internal
 posterior_epred_dnorm1 <- function(prep) {
   sigma <- brms::get_dpar(prep, "mu")  # brms dpar name "mu" is sigma here -- see Details
-  0 * sigma  # E[discrete Normal(0, sigma)] = 0; preserves draw x obs matrix dimensions
+  out <- 0 * sigma  # E[discrete Normal(0, sigma)] = 0; preserves draw x obs matrix dimensions
+  lb_full <- prep$data$lb; ub_full <- prep$data$ub
+  if (is.null(lb_full) && is.null(ub_full)) return(out)
+  nobs <- ncol(sigma)
+  lb_obs <- .get_bound(prep, "lb", seq_len(nobs))
+  ub_obs <- .get_bound(prep, "ub", seq_len(nobs))
+  trunc_obs <- which(is.finite(lb_obs) | is.finite(ub_obs))
+  if (length(trunc_obs) == 0) return(out)
+  for (j in trunc_obs) {
+    lpmf <- function(y, idx) dnorm1_lpmf_r(y, sigma[idx, j])
+    out[, j] <- .truncated_mean_by_sum(lpmf, lb_obs[j], ub_obs[j], center = rep(0, nrow(sigma)))
+  }
+  out
 }
 
 # ==========================================================================
@@ -804,12 +900,32 @@ log_lik_dnorm2 <- function(i, prep) {
 posterior_predict_dnorm2 <- function(i, prep, ...) {
   mu    <- brms::get_dpar(prep, "mu", i = i)
   sigma <- brms::get_dpar(prep, "sigma", i = i)
-  round(stats::rnorm(length(mu), mean = mu, sd = sigma))
+  lb <- .get_bound(prep, "lb", i)
+  ub <- .get_bound(prep, "ub", i)
+  if (!is.finite(lb) && !is.finite(ub)) {
+    return(round(stats::rnorm(length(mu), mean = mu, sd = sigma)))
+  }
+  u <- stats::runif(length(mu))
+  .invert_truncated_cdf(function(y, idx) dnorm2_lccdf_r(y, mu[idx], sigma[idx]), u, lb, ub)
 }
 
 #' @rdname dnorm2
 #' @export
 #' @keywords internal
 posterior_epred_dnorm2 <- function(prep) {
-  brms::get_dpar(prep, "mu")  # E[discrete Normal(mu, sigma)] = mu
+  mu  <- brms::get_dpar(prep, "mu")  # E[discrete Normal(mu, sigma)] = mu
+  out <- mu
+  lb_full <- prep$data$lb; ub_full <- prep$data$ub
+  if (is.null(lb_full) && is.null(ub_full)) return(out)
+  sigma <- brms::get_dpar(prep, "sigma")
+  nobs <- ncol(mu)
+  lb_obs <- .get_bound(prep, "lb", seq_len(nobs))
+  ub_obs <- .get_bound(prep, "ub", seq_len(nobs))
+  trunc_obs <- which(is.finite(lb_obs) | is.finite(ub_obs))
+  if (length(trunc_obs) == 0) return(out)
+  for (j in trunc_obs) {
+    lpmf <- function(y, idx) dnorm2_lpmf_r(y, mu[idx, j], sigma[idx, j])
+    out[, j] <- .truncated_mean_by_sum(lpmf, lb_obs[j], ub_obs[j], center = mu[, j])
+  }
+  out
 }

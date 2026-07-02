@@ -198,6 +198,45 @@ an exact `erfc()`-based survival function for the normal families), so
 their `_lccdf_stanvars()` functions take no threshold argument — there is
 no large-argument failure mode to guard against.
 
+`posterior_predict_<family>()` and `posterior_epred_<family>()` correctly
+account for `resp_trunc()` bounds too (as of `skellambrms` 0.3.1) — see
+Limitations below for an important caveat about `brms::posterior_epred()`
+specifically on truncated fits.
+
+## Limitations
+
+**`brms::posterior_epred()` — and anything built on it, including
+`fitted()` and `conditional_effects()` — errors on any truncated fit, for
+all six families here.** This is a `brms` limitation, not this package's:
+`brms`'s internal `posterior_epred.brmsprep()` checks whether the model is
+truncated *before* checking whether the family is a custom one, and
+unconditionally routes truncated fits to `brms:::posterior_epred_trunc()`.
+That function has no fallback to a custom family's own
+`posterior_epred_<family>()` on the truncated branch — it looks for a
+generic `posterior_epred_trunc_custom()` inside `brms`'s own namespace,
+which doesn't exist for *any* custom family, truncated or not. Confirmed
+directly against the installed `brms` source
+(`brms:::posterior_epred_trunc`); the error raised is `"posterior_epred
+values on the respone scale not yet implemented for truncated 'custom'
+models"`.
+
+**Workaround:** call the family's `posterior_epred_<family>()` directly on
+a real `prepare_predictions()` object, bypassing `brms`'s generic dispatch:
+
+```r
+prep  <- brms::prepare_predictions(fit)
+epred <- posterior_epred_dnorm2(prep)  # or posterior_epred_skellam1(), etc.
+```
+
+Each family's `posterior_epred_<family>()` correctly accounts for
+`resp_trunc()` bounds when called this way — the underlying computation
+isn't the problem, only `brms`'s own generic dispatch is.
+
+`brms::posterior_predict()` is unaffected by this and works correctly for
+truncated fits of every family — its dispatch calls the family's own
+`posterior_predict_<family>()` unconditionally and only checks truncation
+bounds afterwards, with no analogous gate.
+
 ## Testing
 
 The test suite (`tests/testthat/`) validates, for every family:

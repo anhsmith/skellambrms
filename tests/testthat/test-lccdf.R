@@ -279,4 +279,33 @@ test_that("skellam1_stanvars() + skellam1_lccdf_stanvars() works with resp_trunc
                    ", 95% CI: [", round(sigma_q[[1]], 3),
                    ", ", round(sigma_q[[2]], 3), "]")
   )
+
+  # Extend the existing fit (no new brm() call) to also check that
+  # posterior_predict()/posterior_epred() honour resp_trunc()'s bounds --
+  # confirms the R-side truncation fix (see R/truncation.R and
+  # posterior_predict_skellam1/posterior_epred_skellam1 in R/family.R)
+  # works through the full brms dispatch path, not just the synthetic-prep
+  # unit tests in test-skellam1.R.
+  pp <- brms::posterior_predict(fit)
+  expect_true(all(sweep(pp, 2, dat$neg_bound, `>=`)),
+              label = "posterior_predict draws below their row's trunc(lb=) bound")
+
+  # brms::posterior_epred() itself cannot be used here: brms's generic
+  # posterior_epred.brmsprep() checks is_trunc() *before* considering
+  # family type and unconditionally routes truncated fits to
+  # posterior_epred_trunc(), which looks for a function named
+  # "posterior_epred_trunc_custom" inside brms's OWN namespace (not this
+  # package's) -- confirmed via brms:::posterior_epred_trunc's source.
+  # That function doesn't exist for any custom family, so
+  # brms::posterior_epred() always errors ("not yet implemented for
+  # truncated 'custom' models") on a truncated custom-family fit,
+  # regardless of whether the family's own posterior_epred_<name>() is
+  # correct. Calling posterior_epred_skellam1() directly on a real
+  # prepare_predictions() object sidesteps that brms-level gate while
+  # still exercising the real fit end-to-end.
+  prep <- brms::prepare_predictions(fit)
+  ep   <- posterior_epred_skellam1(prep)
+  expect_true(all(is.finite(ep)))
+  expect_true(all(sweep(ep, 2, dat$neg_bound, `>=`)),
+              label = "posterior_epred below the row's trunc(lb=) bound")
 })
