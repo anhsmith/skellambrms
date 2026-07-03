@@ -367,3 +367,17 @@ test_that("posterior_epred_dnorm1 leaves untruncated observations exactly at 0 (
   epred <- posterior_epred_dnorm1(prep)
   expect_equal(epred, 0 * prep$dpars$mu)
 })
+
+# -----------------------------------------------------------------------
+# ifelse() length-collapse regression -- see test-dlaplace1.R for the full
+# explanation. dnorm1_lpmf_r's test (z >= 0) is built from z alone, so a
+# scalar z against vector sigma is the direction that would collapse.
+# -----------------------------------------------------------------------
+
+test_that("dnorm1_lpmf_r does not collapse to length 1 for scalar z, vector sigma", {
+  z <- 2
+  sigma <- c(1, 2, 3, 4, 5)
+  out <- dnorm1_lpmf_r(z, sigma)
+  expect_length(out, length(sigma))
+  expect_equal(out, vapply(sigma, function(s) dnorm1_lpmf_r(z, s), numeric(1)))
+})

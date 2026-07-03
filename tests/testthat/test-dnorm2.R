@@ -410,3 +410,18 @@ test_that("posterior_epred_dnorm2 leaves untruncated observations exactly at mu 
   epred <- posterior_epred_dnorm2(prep)
   expect_equal(epred, prep$dpars$mu)
 })
+
+# -----------------------------------------------------------------------
+# ifelse() length-collapse regression -- see test-dlaplace1.R for the full
+# explanation. dnorm2_lpmf_r's test (z >= mu) is built from z and mu, so a
+# scalar z against vector mu/sigma is the direction that would collapse.
+# -----------------------------------------------------------------------
+
+test_that("dnorm2_lpmf_r does not collapse to length 1 for scalar z, vector mu/sigma", {
+  z <- 2
+  mu    <- c(-1, 0, 1, 2, 3)
+  sigma <- c(1, 2, 3, 4, 5)
+  out <- dnorm2_lpmf_r(z, mu, sigma)
+  expect_length(out, length(mu))
+  expect_equal(out, mapply(function(m, s) dnorm2_lpmf_r(z, m, s), mu, sigma))
+})

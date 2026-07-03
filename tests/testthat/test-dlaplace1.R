@@ -377,3 +377,39 @@ test_that("posterior_epred_dlaplace1 leaves untruncated observations exactly at 
   epred <- posterior_epred_dlaplace1(prep)
   expect_equal(epred, 0 * prep$dpars$mu)
 })
+
+# -----------------------------------------------------------------------
+# ifelse() length-collapse regression (scalar z/y against vector sigma) --
+# existing tests above only exercise vector-y-vs-scalar-sigma, which never
+# triggers the bug (ifelse()'s output length follows its *test* argument;
+# a vector test already has the right length). The direction that broke
+# is the opposite one: a single observation (scalar z/y, e.g. one row of
+# Y) evaluated against a vector of per-draw sigma.
+# -----------------------------------------------------------------------
+
+test_that("dlaplace1_lpmf_r does not collapse to length 1 for scalar z, vector sigma", {
+  z <- 2
+  sigma <- c(1, 2, 3, 4, 5)
+  out <- dlaplace1_lpmf_r(z, sigma)
+  expect_length(out, length(sigma))
+  expect_equal(out, vapply(sigma, function(s) dlaplace1_lpmf_r(z, s), numeric(1)))
+})
+
+test_that("dlaplace1_lccdf_r does not collapse to length 1 for scalar y, vector sigma", {
+  y <- 2
+  sigma <- c(1, 2, 3, 4, 5)
+  out <- dlaplace1_lccdf_r(y, sigma)
+  expect_length(out, length(sigma))
+  expect_equal(out, vapply(sigma, function(s) dlaplace1_lccdf_r(y, s), numeric(1)))
+})
+
+test_that("log_lik_dlaplace1 returns one log-lik per draw, not a length-1 collapse", {
+  ndraws <- 50
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(seq(1, 5, length.out = ndraws), nrow = ndraws, ncol = 1)),
+    Y = 2
+  )
+  out <- log_lik_dlaplace1(1, prep)
+  expect_length(out, ndraws)
+  expect_equal(out, dlaplace1_lpmf_r(2, prep$dpars$mu[, 1]))
+})

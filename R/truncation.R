@@ -329,7 +329,12 @@ skellam2_lccdf_r <- function(y, mu, sigmaexcess, normal_approx_threshold = 100) 
 # formula exactly (same laplace_cdf two-branch closed form).
 dlaplace1_lpmf_r <- function(z, sigma) {
   b <- sigma / sqrt(2)
-  laplace_cdf <- function(x) ifelse(x < 0, 0.5 * exp(x / b), 1 - 0.5 * exp(-x / b))
+  # Broadcast x against b before the ifelse() test -- see log_lik_dlaplace1
+  # for why (test-length, not yes/no-branch-length, drives ifelse() output).
+  laplace_cdf <- function(x) {
+    x <- x + 0 * b
+    ifelse(x < 0, 0.5 * exp(x / b), 1 - 0.5 * exp(-x / b))
+  }
   log(laplace_cdf(z + 0.5) - laplace_cdf(z - 0.5))
 }
 dlaplace2_lpmf_r <- function(z, mu, sigma) {
@@ -350,11 +355,15 @@ dlaplace2_lpmf_r <- function(z, mu, sigma) {
 dlaplace1_lccdf_r <- function(y, sigma) {
   b <- sigma / sqrt(2)
   x <- y + 0.5
+  # Broadcast x against b before the ifelse() test -- see log_lik_dlaplace1
+  # for why (test-length, not yes/no-branch-length, drives ifelse() output).
+  x <- x + 0 * b
   ifelse(x >= 0, log(0.5) - x / b, log1p(-0.5 * exp(x / b)))
 }
 dlaplace2_lccdf_r <- function(y, mu, sigma) {
   b <- sigma / sqrt(2)
   x <- y - mu + 0.5
+  x <- x + 0 * b
   ifelse(x >= 0, log(0.5) - x / b, log1p(-0.5 * exp(x / b)))
 }
 
@@ -366,6 +375,10 @@ dlaplace2_lccdf_r <- function(y, mu, sigma) {
 # (survival-difference form to avoid the log-CDF cancellation risk in the
 # positive tail).
 dnorm1_lpmf_r <- function(z, sigma) {
+  # Broadcast z against sigma before the ifelse() test -- see
+  # log_lik_dlaplace1 for why (test-length, not yes/no-branch-length,
+  # drives ifelse() output).
+  z <- z + 0 * sigma
   ifelse(
     z >= 0,
     log(stats::pnorm(z - 0.5, sd = sigma, lower.tail = FALSE) -
@@ -374,6 +387,7 @@ dnorm1_lpmf_r <- function(z, sigma) {
   )
 }
 dnorm2_lpmf_r <- function(z, mu, sigma) {
+  z <- z + 0 * mu + 0 * sigma
   ifelse(
     z >= mu,
     log(stats::pnorm(z - mu - 0.5, sd = sigma, lower.tail = FALSE) -

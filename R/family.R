@@ -482,7 +482,15 @@ log_lik_dlaplace1 <- function(i, prep) {
   sigma <- brms::get_dpar(prep, "mu", i = i)  # brms dpar name "mu" is sigma here -- see Details
   b     <- sigma / sqrt(2)
   z     <- prep$data$Y[i]
-  laplace_cdf <- function(x) ifelse(x < 0, 0.5 * exp(x / b), 1 - 0.5 * exp(-x / b))
+  # ifelse()'s output length follows its *test* argument, not the yes/no
+  # branches -- since z is a single observation (scalar) while b varies by
+  # draw (vector), the test x < 0 would be evaluated at length 1 and the
+  # whole ifelse() would silently collapse to length 1 instead of ndraws.
+  # Broadcasting x against b before the test fixes this.
+  laplace_cdf <- function(x) {
+    x <- x + 0 * b
+    ifelse(x < 0, 0.5 * exp(x / b), 1 - 0.5 * exp(-x / b))
+  }
   log(laplace_cdf(z + 0.5) - laplace_cdf(z - 0.5))
 }
 

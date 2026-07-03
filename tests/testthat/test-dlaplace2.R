@@ -425,3 +425,22 @@ test_that("posterior_epred_dlaplace2 leaves untruncated observations exactly at 
   epred <- posterior_epred_dlaplace2(prep)
   expect_equal(epred, prep$dpars$mu)
 })
+
+# -----------------------------------------------------------------------
+# ifelse() length-collapse regression -- see test-dlaplace1.R for the full
+# explanation. dlaplace2_lccdf_r's test (x >= 0) is built from y - mu, so
+# a scalar y against vector mu/sigma is the direction that would collapse.
+# -----------------------------------------------------------------------
+
+test_that("dlaplace2_lccdf_r does not collapse to length 1 for scalar y, vector mu/sigma", {
+  y <- 2
+  mu    <- c(-1, 0, 1, 2, 3)
+  sigma <- c(1, 2, 3, 4, 5)
+  # suppressWarnings: ifelse() eagerly evaluates both branches for every
+  # element -- the x>=0 branch's exp(x/b) overflows for the (unselected)
+  # x<0 elements here, same benign artifact documented in test-dlaplace1.R.
+  out <- suppressWarnings(dlaplace2_lccdf_r(y, mu, sigma))
+  expect_length(out, length(mu))
+  ref <- suppressWarnings(mapply(function(m, s) dlaplace2_lccdf_r(y, m, s), mu, sigma))
+  expect_equal(out, ref)
+})

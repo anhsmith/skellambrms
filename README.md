@@ -266,6 +266,11 @@ The test suite (`tests/testthat/`) validates, for every family:
   `resp_trunc()` — and checking that the true generating parameters fall
   within the posterior credible interval, alongside divergence and Rhat
   checks.
+- That `log_lik_<family>()` and the internal R-side `_lpmf_r()`/`_lccdf_r()`
+  helpers return one value per posterior draw for a single observation, not
+  just for a vector of observations — the direction that silently broke
+  `log_lik_dlaplace1()` (and hence `loo()`) prior to 0.3.2, since R's
+  `ifelse()` takes its output length from its test argument alone.
 
 ## Functions
 

@@ -1,3 +1,24 @@
+# skellambrms 0.3.2
+
+* Fixed a silent `ifelse()` length-collapse bug in `log_lik_dlaplace1()`:
+  `ifelse(test, yes, no)` takes its output length from `test`, not from
+  the (vectorised) `yes`/`no` branches. Because `dlaplace1()` has no free
+  mean, the CDF-differencing argument built from the observation `z` is a
+  scalar, while `sigma` (and the derived `b`) varies across posterior
+  draws — so the `ifelse()` test was evaluated at length 1 and the whole
+  per-observation log-likelihood silently collapsed to length 1 instead of
+  `ndraws`. This broke `brms::add_criterion(fit, "loo")` for every
+  `dlaplace1()` fit (`is.matrix(unnormalized_log_weights) is not TRUE`),
+  while sampling, `posterior_predict()`, and truncation were entirely
+  unaffected — confirmed isolated to this one function's R-side length
+  handling, not a data or convergence issue.
+* Applied the same fix pre-emptively to five more internal R-side helpers
+  sharing the identical `ifelse()` shape — `dlaplace1_lpmf_r()`,
+  `dlaplace1_lccdf_r()`, `dlaplace2_lccdf_r()`, `dnorm1_lpmf_r()`, and
+  `dnorm2_lpmf_r()` in `R/truncation.R`. None were triggering the bug at
+  their current call sites (which happen to keep argument lengths
+  matched), but all shared the same landmine.
+
 # skellambrms 0.3.1
 
 * Fixed `posterior_predict_<family>()` for all six families: previously
