@@ -1,8 +1,10 @@
 # skellambrms
 
-Custom [brms](https://paul-buerkner.github.io/brms/) families for modelling
-integer-valued differences on ℤ — the outcome of subtracting one paired
-count from another.
+Custom [brms](https://paul-buerkner.github.io/brms/) families for comparing
+two paired counts. Two complementary approaches: **difference families** that
+model the integer-valued difference on ℤ (one paired count minus the other),
+and **joint bivariate-count families** that model the matched pair itself —
+its correlation, marginal overdispersion, and difference together.
 
 ## Background
 
@@ -13,14 +15,22 @@ difference between two paired count sources. Standard `brms` count
 families (Poisson, negative binomial, ...) don't support a `Z`-valued
 response.
 
-This package provides six custom `brms` families, built around three
-distributional families:
+This package provides six **difference** families, built around three
+distributional families, plus two **joint bivariate-count** families
+(documented in their own section below):
 
 - **Skellam** — the distribution of the difference of two independent
   Poisson random variables.
 - **Discrete Laplace** — a Laplace distribution discretised onto the
   integers via CDF differencing.
 - **Discrete normal** — a normal distribution discretised the same way.
+
+The joint families take a complementary view: rather than collapsing the
+pair to its difference (which discards the pair's overall level and
+correlation), they model both counts at once. Use a difference family when
+only the disagreement matters and you want truncation support; use a joint
+family when the pair's correlation, marginal overdispersion, or the need to
+simulate one count conditional on the other matters.
 
 Each of the three is available in two parameterisations: one with the mean
 fixed at zero (for testing whether two sources agree on average) and one
@@ -55,6 +65,78 @@ Laplace and discrete normal families have no such constraint — `mu` and
 `sigma` are free, independent parameters throughout. Comparing `skellam2()`
 against `dlaplace2()`/`dnorm2()` lets you test whether bias and spread are
 structurally coupled in your data or vary independently.
+
+## Joint bivariate-count families
+
+`bipois()` and `binegbin()` model a matched count pair `(y_em, y_lb)`
+jointly, rather than its difference. Both use the same trivariate-reduction
+construction: a shared latent count plus two private latent counts,
+
+```
+y_em = N_shared + N10       y_lb = N_shared + N01
+```
+
+with `N_shared`, `N10`, `N01` mutually independent given their rates and
+`N_shared` marginalised out of the joint likelihood analytically. The shared
+component induces positive correlation between the two counts; the private
+components govern their difference (`N_shared` cancels from `y_em - y_lb`).
+
+| Family | Latent components | Dispersion | Captures |
+|---|---|---|---|
+| `bipois()` | three independent **Poisson** (`mu`, `lambdaem`, `lambdalb`) | none — each component has `Var == mean` | correlation and difference of the pair, but only when the margins are *not* overdispersed |
+| `binegbin()` | three independent **Negative-Binomial** | scalar `shapes` (shared) and `shapex` (private) | as above, plus marginal overdispersion and the associated over-spread of the difference |
+
+`binegbin()` is the one to reach for on real count data, which is almost
+always overdispersed: `bipois()` forces `Var == mean` on every component and
+so underfits the marginal variances (and hence the difference variance) of
+overdispersed pairs. `binegbin()` carries the extra dispersion in two
+identifiable *scalar* parameters — a Negative-Binomial `shapes` for the
+shared component and a `shapex` shared across the two private components.
+(An observation-level random effect on the private components was tried as an
+alternative and rejected: with one pair per unit it overfits and the
+dispersion SD collapses, so a fresh-draw posterior-predictive check fails to
+reproduce the difference variance even though a conditional one looks fine.)
+
+The second count travels via brms's `vint()` addition term, since
+`custom_family()` declares a single response column. There is no forced-`mu`
+naming quirk here — `mu` is genuinely the shared component's rate — but note
+that `mu` is *not* the mean of either response individually.
+
+```r
+library(brms)
+library(skellambrms)
+
+# bipois(): joint bivariate Poisson (non-overdispersed margins)
+fit_bp <- brm(
+  bf(y_em | vint(y_lb) ~ 1,
+     mu ~ 1 + (1 | vessel), lambdaem ~ 1, lambdalb ~ 1),
+  data     = dat,
+  family   = bipois(),
+  stanvars = bipois_stanvars(),
+  chains   = 4
+)
+
+# binegbin(): joint bivariate Negative-Binomial (overdispersed margins)
+fit_nb <- brm(
+  bf(y_em | vint(y_lb) ~ 1,
+     mu ~ 1 + (1 | vessel),
+     nlf(lambdaem ~ exp(lamx)), nlf(lambdalb ~ exp(lamx)), lamx ~ 1,
+     shapes ~ 1, shapex ~ 1, nl = TRUE),
+  data     = dat,
+  family   = binegbin(),
+  stanvars = binegbin_stanvars(),
+  chains   = 4
+)
+```
+
+The `nlf(... exp(lamx))` idiom above ties the two private rates to a shared
+value (a "no systematic bias" assumption, `E[y_em] = E[y_lb]`); drop it and
+give `lambdaem`/`lambdalb` free intercepts to allow a mean difference. For
+either family, `posterior_predict()` simulates `y_em` conditional on the
+observed `y_lb` — for `bipois()` via the closed-form
+`Binomial(y_lb, mu/(mu + lambdalb))` split, for `binegbin()` via the discrete
+`N_shared | y_lb` conditional. Truncation (`resp_trunc()`) does not apply to
+these joint families.
 
 ### A naming quirk to be aware of
 
@@ -272,6 +354,14 @@ The test suite (`tests/testthat/`) validates, for every family:
   `log_lik_dlaplace1()` (and hence `loo()`) prior to 0.3.2, since R's
   `ifelse()` takes its output length from its test argument alone.
 
+For the joint families (`bipois()`, `binegbin()`) the suite instead validates
+the marginalised joint log-PMF against an independent R brute-force reference
+across a rate/shape grid and at extreme edge cases, checks that it normalises
+to 1, checks the analytic moment identities (mean, marginal variance,
+difference variance, covariance), confirms `binegbin()` reduces to `bipois()`
+in the Poisson limit (`shapes`, `shapex` → ∞), and runs end-to-end parameter
+recovery from simulated hierarchical data with divergence/Rhat checks.
+
 ## Functions
 
 | Function | Purpose |
@@ -295,6 +385,10 @@ The test suite (`tests/testthat/`) validates, for every family:
 | `dnorm2()` | Custom family object for `dnorm2` (free mean and scale) |
 | `dnorm2_stanvars()` | Stan code block for `dnorm2` |
 | `dnorm2_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `dnorm2` |
+| `bipois()` | Custom family object for the joint bivariate Poisson |
+| `bipois_stanvars()` | Stan code block for `bipois` |
+| `binegbin()` | Custom family object for the joint bivariate Negative-Binomial |
+| `binegbin_stanvars()` | Stan code block for `binegbin` |
 
 Each family also exports `log_lik_<family>()`, `posterior_predict_<family>()`,
 and `posterior_epred_<family>()` — the standard `brms` custom-family
@@ -306,6 +400,10 @@ called directly.
 Skellam JG (1946) The Frequency Distribution of the Difference Between Two
 Poisson Variates Belonging to Different Populations. *Journal of the Royal
 Statistical Society* 109:296.
+
+Holgate P (1964) Estimation for the Bivariate Poisson Distribution.
+*Biometrika* 51:241–245. (The trivariate-reduction construction underlying
+`bipois()` and `binegbin()`.)
 
 Karlis D, Ntzoufras I (2003) Analysis of Sports Data by Using Bivariate
 Poisson Models. *Journal of the Royal Statistical Society: Series D (The

@@ -1,3 +1,41 @@
+# skellambrms 0.4.0
+
+* Added the first **joint bivariate-count families**, a different modelling
+  paradigm from the six difference families above: instead of modelling
+  `y_em - y_lb` (a Z-valued difference), these model the matched pair
+  `(y_em, y_lb)` jointly, capturing their correlation and marginal
+  overdispersion alongside their difference. Both are built by trivariate
+  reduction — `y_em = N_shared + N10`, `y_lb = N_shared + N01`, with
+  `N_shared` marginalised out of the joint likelihood analytically — and take
+  the second count via brms's `vint()` addition term.
+* Added `bipois()` / `bipois_stanvars()`: the **bivariate Poisson**, with
+  three independent Poisson latent components (`mu` = shared rate,
+  `lambdaem`/`lambdalb` = the two private rates). The Stan log-likelihood uses
+  the incremental `bipois2` recurrence (stan-users, March 2016), cross-checked
+  against an independent R brute-force reference to ~1e-14. Cannot be
+  overdispersed (each component has `Var == mean`), so it underfits any data
+  whose margins are overdispersed — see `binegbin()`.
+* Added `binegbin()` / `binegbin_stanvars()`: the **bivariate
+  Negative-Binomial**, the overdispersed sibling of `bipois()`. Each latent
+  component is Negative-Binomial (`neg_binomial_2`), adding two scalar
+  dispersion dpars — `shapes` (shared component) and `shapex` (shared across
+  the two private components, the "2 kappa" structure). The marginalisation
+  sum is identical in form to `bipois()` with `neg_binomial_2_lpmf` swapped in
+  for `poisson_lpmf` (not a Gamma-mixed Poisson, so no stacked
+  marginalisation). Carries overdispersion in identifiable *scalar*
+  parameters rather than per-observation random effects, which was found to
+  overfit (the excess-dispersion SD collapses under a per-set OLRE). Validated
+  against an independent R brute-force reference to ~1e-14, with normalisation
+  and moment-identity checks and clean synthetic parameter recovery.
+* Both joint families export the standard `log_lik_<family>()`,
+  `posterior_predict_<family>()`, and `posterior_epred_<family>()` interface
+  functions. `posterior_predict` simulates `y_em` conditional on the observed
+  `y_lb` — for `bipois()` via the closed-form `Binomial(y_lb, mu/(mu+lambdalb))`
+  split, for `binegbin()` via the discrete `N_shared | y_lb` conditional
+  (no clean Binomial form for a NegBin sum). Truncation (`resp_trunc()`) is
+  not applicable to these joint families and no `_lccdf_stanvars()` is
+  provided.
+
 # skellambrms 0.3.2
 
 * Fixed a silent `ifelse()` length-collapse bug in `log_lik_dlaplace1()`:

@@ -1,18 +1,23 @@
 Package: skellambrms
-Title: Skellam and Related Discrete Difference Distributions as brms
+Title: Skellam, Discrete-Difference, and Joint Bivariate-Count brms
     Custom Families
-Version: 0.3.2
+Version: 0.4.0
 Authors@R: person("Adam N. H.", "Smith", , "anhsmith@gmail.com", role = c("aut", "cre"))
-Description: Provides custom brms families for modelling the difference
-    between two paired count sources: the symmetric and asymmetric Skellam
-    distributions (the distribution of the difference of two Poisson random
-    variables), and discrete Laplace and discrete normal distributions
-    discretised via CDF differencing. Each distribution is available with
-    location fixed at zero (testing whether two sources agree on average)
-    and with a free location parameter (quantifying systematic
-    disagreement), all sampled on a common SD-scale spread parameter.
-    Includes truncation support via brms's resp_trunc(). Intended for
-    modelling set-level differences between paired count sources.
+Description: Provides custom brms families for comparing two paired count
+    sources, via two complementary approaches. First, families that model the
+    difference directly: the symmetric and asymmetric Skellam distributions
+    (the distribution of the difference of two Poisson random variables), and
+    discrete Laplace and discrete normal distributions discretised via CDF
+    differencing, each available with location fixed at zero (testing whether
+    two sources agree on average) or with a free location parameter
+    (quantifying systematic disagreement), all sampled on a common SD-scale
+    spread parameter and supporting truncation via brms's resp_trunc().
+    Second, joint bivariate-count families built by trivariate reduction -- a
+    bivariate Poisson (bipois) and its overdispersed bivariate
+    Negative-Binomial sibling (binegbin) -- that model a matched pair of
+    counts jointly, capturing their correlation, marginal overdispersion, and
+    difference together rather than the difference alone. Intended for
+    modelling set-level agreement between paired count sources.
 License: MIT + file LICENSE
 Encoding: UTF-8
 RoxygenNote: 7.3.3
