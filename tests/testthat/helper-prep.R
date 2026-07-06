@@ -16,7 +16,8 @@
 # match brms's own behaviour for untruncated formulas (confirmed via
 # brms::make_standata(): prep$data$lb/ub are absent, not -Inf/Inf-filled,
 # when no trunc()/resp_trunc() is used).
-make_synthetic_prep <- function(dpars, Y, lb = NULL, ub = NULL) {
+make_synthetic_prep <- function(dpars, Y, lb = NULL, ub = NULL,
+                                vint1 = NULL, vint2 = NULL) {
   nobs <- length(Y)
   ndraws <- unique(vapply(dpars, function(x) {
     if (is.matrix(x)) nrow(x) else length(x)
@@ -33,6 +34,11 @@ make_synthetic_prep <- function(dpars, Y, lb = NULL, ub = NULL) {
   data <- list(Y = Y)
   if (!is.null(lb)) data$lb <- lb
   if (!is.null(ub)) data$ub <- ub
+  # Supplementary integer data threaded through brms's vint() addition term;
+  # the joint families read these as prep$data$vint1/vint2 (e.g. y_lb and the
+  # em_obs branch flag for binegbin_joint), row-indexed exactly like Y.
+  if (!is.null(vint1)) data$vint1 <- vint1
+  if (!is.null(vint2)) data$vint2 <- vint2
 
   structure(
     list(dpars = dpars_mat, data = data, ndraws = ndraws, nobs = nobs),

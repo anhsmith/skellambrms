@@ -1,106 +1,296 @@
 # skellambrms
 
-Custom [brms](https://paul-buerkner.github.io/brms/) families for comparing
-two paired counts. Two complementary approaches: **difference families** that
-model the integer-valued difference on ℤ (one paired count minus the other),
-and **joint bivariate-count families** that model the matched pair itself —
-its correlation, marginal overdispersion, and difference together.
+Custom [brms](https://paul-buerkner.github.io/brms/) families for modelling a
+**pair of counts** from two sources that are meant to measure the same thing —
+two observers, two instruments, two reporting channels — where the question is
+how much, and how systematically, they disagree.
 
-## Background
+The package offers two complementary ways to pose that question, and it is
+worth deciding which you want before reading further:
 
-Many count-comparison problems produce a response that is an integer, but
-can be negative: the difference between two observers' counts of the same
-event, the goal difference between two teams, or any other set-level
-difference between two paired count sources. Standard `brms` count
-families (Poisson, negative binomial, ...) don't support a `Z`-valued
-response.
+- **Difference families** model the single integer $d = y_1 - y_2 \in
+  \mathbb{Z}$ directly (Skellam, discrete Laplace, discrete normal). Reach for
+  these when *only the disagreement matters* and you want truncation support.
+- **Joint bivariate-count families** model the pair $(y_1, y_2)$ itself
+  (bivariate Poisson and bivariate negative-binomial). Reach for these when
+  the pair's **overall level, correlation, or marginal overdispersion**
+  matters, or when you need to **simulate one count given the other**.
 
-This package provides six **difference** families, built around three
-distributional families, plus two **joint bivariate-count** families
-(documented in their own section below):
+The two suites answer different questions and are documented in their own
+sections below. The [Overview](#overview) contrasts them; if you already know
+which you need, skip to [Difference families](#difference-families) or
+[Joint bivariate-count families](#joint-bivariate-count-families).
 
-- **Skellam** — the distribution of the difference of two independent
-  Poisson random variables.
-- **Discrete Laplace** — a Laplace distribution discretised onto the
-  integers via CDF differencing.
-- **Discrete normal** — a normal distribution discretised the same way.
+## Overview
 
-The joint families take a complementary view: rather than collapsing the
-pair to its difference (which discards the pair's overall level and
-correlation), they model both counts at once. Use a difference family when
-only the disagreement matters and you want truncation support; use a joint
-family when the pair's correlation, marginal overdispersion, or the need to
-simulate one count conditional on the other matters.
+Many count-comparison problems produce a response that is an integer but can
+be negative — the difference between two observers' counts of the same event,
+the goal difference between two teams, the gap between a camera's and a
+logbook's tally of the same fishing set. Standard `brms` count families
+(Poisson, negative binomial, …) model a non-negative response and cannot take
+a $\mathbb{Z}$-valued one, nor a jointly-modelled pair. This package fills both
+gaps.
 
-Each of the three is available in two parameterisations: one with the mean
-fixed at zero (for testing whether two sources agree on average) and one
-with a free mean (for quantifying systematic disagreement), giving six
-families in total — `skellam1`/`skellam2`, `dlaplace1`/`dlaplace2`, and
-`dnorm1`/`dnorm2`. All six are sampled on a common (mean, SD-scale) spread
-convention, and all support truncation via `brms`'s `resp_trunc()`.
+|  | **Difference families** | **Joint families** |
+|---|---|---|
+| Response | $d = y_1 - y_2$ (one value per pair) | $(y_1, y_2)$ (the pair; $y_2$ via `vint()`) |
+| Families | `skellam1/2`, `dlaplace1/2`, `dnorm1/2` | `bipois`, `binegbin`, `binegbin_joint` |
+| Captures | location and spread of the disagreement | level, correlation, marginal overdispersion, **and** the disagreement |
+| Discards | the pair's level and correlation | nothing — but needs both counts observed (except `binegbin_joint`) |
+| Truncation (`resp_trunc()`) | **yes** | no |
+| Conditional simulation $y_1 \mid y_2$ | n/a | **yes** |
+| Overdispersed margins | n/a (models $d$, not the margins) | `binegbin` / `binegbin_joint` only |
 
-## Families
+**Choosing.** If your data are a set of differences and you care only about
+whether and by how much the two sources disagree — with, say, a lower
+truncation bound because $d$ could not physically have fallen below some value
+— use a **difference** family. If you have the two counts side by side and
+their correlation or absolute level is itself of interest, or the margins are
+overdispersed, or you want to impute one count from the other, use a **joint**
+family. The two views are connected: for the bivariate Poisson, the difference
+$y_1 - y_2$ is *exactly* Skellam-distributed (see below), so `bipois` contains
+`skellam2` as its induced difference model.
 
-| Family | Mean | Spread parameter | Mean–spread coupling |
+## Difference families
+
+A difference family models $d = y_1 - y_2$ with a distribution on $\mathbb{Z}$.
+All three underlying distributions are parameterised on a common **(mean,
+SD-scale)** convention so that fits are directly comparable: a location $\mu$
+(the mean of $d$) and a spread $\sigma$ (its standard deviation, on the log
+scale). Each comes in two flavours — mean fixed at $0$ (does the pair agree on
+average?) and free mean (how large is the systematic bias?):
+
+| Family | Mean | Spread | Mean–spread coupling |
 |---|---|---|---|
-| `skellam1()` | fixed at 0 | `sigma` (log link) | none exposed to the user; internally `theta1 = theta2 = sigma^2/2` |
-| `skellam2()` | free, `mu` (identity link) | `sigmaexcess` (log link) | `sigma^2 = |mu| + sigmaexcess^2` — the genuine Skellam validity constraint (`theta1, theta2 >= 0`); reduces exactly to `skellam1()` at `mu = 0` |
-| `dlaplace1()` | fixed at 0 | `sigma` (log link) | none |
-| `dlaplace2()` | free, `mu` (identity link) | `sigma` (log link) | none — deliberately decoupled from `mu` |
-| `dnorm1()` | fixed at 0 | `sigma` (log link) | none |
-| `dnorm2()` | free, `mu` (identity link) | `sigma` (log link) | none — deliberately decoupled from `mu` |
+| `skellam1()` | fixed at $0$ | $\sigma$ (log) | internally $\theta_1=\theta_2=\sigma^2/2$ |
+| `skellam2()` | free $\mu$ (identity) | $\sigma_{\text{excess}}$ (log) | $\sigma^2 = \lvert\mu\rvert + \sigma_{\text{excess}}^2$ — the genuine Skellam constraint; $\to$ `skellam1()` at $\mu=0$ |
+| `dlaplace1()` | fixed at $0$ | $\sigma$ (log) | none |
+| `dlaplace2()` | free $\mu$ (identity) | $\sigma$ (log) | none — deliberately decoupled |
+| `dnorm1()` | fixed at $0$ | $\sigma$ (log) | none |
+| `dnorm2()` | free $\mu$ (identity) | $\sigma$ (log) | none — deliberately decoupled |
 
-`skellam1`, `dlaplace1`, and `dnorm1` fix the mean at zero and estimate a
-single spread parameter, `sigma` — the SD of the response — on the log
-scale. `skellam2`, `dlaplace2`, and `dnorm2` additionally estimate a free
-mean `mu` on the identity scale.
+### Skellam
 
-For `skellam2()`, `sigma` and `mu` are not free: `sigma^2 = |mu| +
-sigmaexcess^2` guarantees the underlying Poisson rates `theta1 =
-(sigma^2 + mu)/2` and `theta2 = (sigma^2 - mu)/2` are both non-negative for
-every `mu` and every `sigmaexcess >= 0` — the actual Skellam constraint
-(variance ≥ |mean|). This is a genuine structural coupling: a Skellam
-difference with a large mean *must* also have large variance. The discrete
-Laplace and discrete normal families have no such constraint — `mu` and
-`sigma` are free, independent parameters throughout. Comparing `skellam2()`
-against `dlaplace2()`/`dnorm2()` lets you test whether bias and spread are
-structurally coupled in your data or vary independently.
+If $Y_1 \sim \text{Poisson}(\theta_1)$ and $Y_2 \sim \text{Poisson}(\theta_2)$
+independently, then $D = Y_1 - Y_2$ has the **Skellam** distribution
+
+$$
+P(D = k) = e^{-(\theta_1+\theta_2)}\left(\frac{\theta_1}{\theta_2}\right)^{k/2}
+           I_{\lvert k\rvert}\!\left(2\sqrt{\theta_1\theta_2}\right),
+\qquad k \in \mathbb{Z},
+$$
+
+where $I_\nu$ is the modified Bessel function of the first kind, with mean
+$\theta_1-\theta_2$ and variance $\theta_1+\theta_2$. The package samples on
+$(\mu,\sigma)$ rather than $(\theta_1,\theta_2)$:
+
+- **`skellam1()`** fixes $\mu=0$, so $\theta_1=\theta_2=\sigma^2/2$ and
+  $\operatorname{Var}(D)=\sigma^2$. One parameter, $\sigma$.
+- **`skellam2()`** frees the mean via $\theta_1=(\sigma^2+\mu)/2$,
+  $\theta_2=(\sigma^2-\mu)/2$. Because $\theta_1,\theta_2\ge 0$ requires
+  $\sigma^2\ge\lvert\mu\rvert$ (variance $\ge$ $\lvert$mean$\rvert$ — a sum of
+  two non-negative rates can never be smaller than the size of their
+  difference), the family sets $\sigma^2 = \lvert\mu\rvert +
+  \sigma_{\text{excess}}^2$ with $\sigma_{\text{excess}}\ge 0$ free. This makes
+  the constraint hold structurally for every $\mu$, and reduces exactly to
+  `skellam1()` at $\mu=0$. It is a *genuine* coupling: a Skellam difference
+  with a large mean must also have large variance.
+
+### Discrete Laplace and discrete normal
+
+Both are obtained by discretising a continuous distribution $F$ onto the
+integers by **CDF differencing**,
+
+$$
+P(Z = z) = F\!\left(z + \tfrac12\right) - F\!\left(z - \tfrac12\right),
+$$
+
+with $F$ the Laplace$(\mu, b)$ or Normal$(\mu, \sigma)$ CDF. The scale is put
+on the same SD footing as the Skellam families: for the Laplace,
+$\operatorname{Var}=2b^2$, so $b=\sigma/\sqrt2$; for the normal, $\sigma$ is
+already the SD. The `*1` versions fix $\mu=0$; the `*2` versions free it.
+
+Unlike `skellam2()`, `dlaplace2()` and `dnorm2()` impose **no** coupling
+between $\mu$ and $\sigma$ — they are free, independent parameters. That
+contrast is deliberate and is the reason to have all three: fitting
+`skellam2()` (bias and spread structurally coupled) against `dnorm2()` /
+`dlaplace2()` (uncoupled) tests whether your data's disagreement obeys the
+Skellam variance-$\ge$-$\lvert$mean$\rvert$ relationship or not. The discrete
+normal is the light-tailed reference; the discrete Laplace the heavy-tailed
+one.
+
+### Usage
+
+Every family follows the same pattern: pass `family = <family>()` and
+`stanvars = <family>_stanvars()` to `brm()`; add `<family>_lccdf_stanvars()`
+(combined with `+`) to enable truncation.
+
+```r
+library(brms)
+library(skellambrms)
+
+# skellam1(): mean fixed at 0 -- do the two sources agree on average?
+fit1 <- brm(
+  bf(d | trunc(lb = neg_bound) ~ 1 + (1 | group)),
+  data     = dat,
+  family   = skellam1(),
+  stanvars = skellam1_stanvars() + skellam1_lccdf_stanvars(),
+  chains   = 4
+)
+
+# skellam2(): free mean -- how large, and how uncertain, is the disagreement?
+fit2 <- brm(
+  bf(d | trunc(lb = neg_bound) ~ 1 + x, sigmaexcess ~ 1),
+  data     = dat,
+  family   = skellam2(),
+  stanvars = skellam2_stanvars() + skellam2_lccdf_stanvars(),
+  chains   = 4
+)
+```
+
+`dlaplace1/2()` and `dnorm1/2()` are drop-in replacements with the same
+call shape (their free-scale dpar is `sigma`, e.g. `bf(d ~ 1 + x, sigma ~ 1)`).
+`neg_bound` is a column giving a (possibly row-varying) lower truncation
+bound — e.g. `-y_2`, if $d$ could not have fallen more than $y_2$ below zero
+for that row. All families accept arbitrary `brms` formula syntax: random
+effects, and non-linear or covariate-dependent predictors on the spread dpar
+(and, for the free-mean families, on `mu`).
+
+### Truncation
+
+Each difference family exports `<family>_lccdf_stanvars()`, which defines a
+Stan function `<family>_lccdf` — the log complementary CDF $\log P(Z > y)$.
+`brms`'s `resp_trunc()` finds it purely by name convention and uses it for the
+truncated likelihood's normalising constant, including a row-varying bound. No
+wiring beyond adding the stanvar is needed.
+
+For `skellam1()`/`skellam2()` the exact log-CCDF is an iterative tail-sum over
+the Bessel-function PMF. Above a configurable `normal_approx_threshold`
+(default `100`, on the underlying $\mu_{\text{skellam}}$ scale — $\sigma^2/2$
+for `skellam1()`, $(\theta_1+\theta_2)/2$ for `skellam2()`) the exact sum is
+replaced by a normal approximation. This guards two confirmed failure modes
+that occur when HMC warmup pushes the (log-linked, hence unbounded) spread to
+an extreme: a crash from a huge-order Bessel evaluation, and a slower blow-up
+in cost/memory when many rows hit the exact loop inside one deep NUTS tree. See
+`?skellam1_lccdf_stanvars` for how to pick a threshold for your data's scale.
+The discrete Laplace and discrete normal families have closed-form log-CCDFs
+(via `double_exponential_lcdf` and an `erfc`-based survival function), so their
+`_lccdf_stanvars()` take no threshold — there is no large-argument mode to
+guard.
 
 ## Joint bivariate-count families
 
-`bipois()` and `binegbin()` model a matched count pair `(y_em, y_lb)`
-jointly, rather than its difference. Both use the same trivariate-reduction
-construction: a shared latent count plus two private latent counts,
+A joint family models the pair $(y_1, y_2)$ directly, keeping the information a
+difference family throws away — the pair's level and its correlation. All three
+are built by the same **trivariate reduction**: three independent latent counts
 
-```
-y_em = N_shared + N10       y_lb = N_shared + N01
-```
+$$
+N_{\text{shared}} \sim \mathcal{D}(\text{mu}), \quad
+N_{10} \sim \mathcal{D}(\lambda_{\text{em}}), \quad
+N_{01} \sim \mathcal{D}(\lambda_{\text{lb}}),
+$$
 
-with `N_shared`, `N10`, `N01` mutually independent given their rates and
-`N_shared` marginalised out of the joint likelihood analytically. The shared
-component induces positive correlation between the two counts; the private
-components govern their difference (`N_shared` cancels from `y_em - y_lb`).
+combined as
 
-| Family | Latent components | Dispersion | Captures |
-|---|---|---|---|
-| `bipois()` | three independent **Poisson** (`mu`, `lambdaem`, `lambdalb`) | none — each component has `Var == mean` | correlation and difference of the pair, but only when the margins are *not* overdispersed |
-| `binegbin()` | three independent **Negative-Binomial** | scalar `shapes` (shared) and `shapex` (private) | as above, plus marginal overdispersion and the associated over-spread of the difference |
+$$
+y_1 = y_{\text{em}} = N_{\text{shared}} + N_{10}, \qquad
+y_2 = y_{\text{lb}} = N_{\text{shared}} + N_{01}.
+$$
 
-`binegbin()` is the one to reach for on real count data, which is almost
-always overdispersed: `bipois()` forces `Var == mean` on every component and
-so underfits the marginal variances (and hence the difference variance) of
-overdispersed pairs. `binegbin()` carries the extra dispersion in two
-identifiable *scalar* parameters — a Negative-Binomial `shapes` for the
-shared component and a `shapex` shared across the two private components.
-(An observation-level random effect on the private components was tried as an
-alternative and rejected: with one pair per unit it overfits and the
-dispersion SD collapses, so a fresh-draw posterior-predictive check fails to
-reproduce the difference variance even though a conditional one looks fine.)
+The shared count $N_{\text{shared}}$ appears in both, inducing positive
+correlation; the two private counts $N_{10}, N_{01}$ drive the difference. (The
+`em`/`lb` labels — electronic-monitoring vs logbook — are historical; read them
+as "count 1, the modelled response" and "count 2, supplied via `vint()`". `mu`
+is the shared *rate*, **not** the mean of either response.) The likelihood
+marginalises the unobserved $N_{\text{shared}}$ analytically:
 
-The second count travels via brms's `vint()` addition term, since
-`custom_family()` declares a single response column. There is no forced-`mu`
-naming quirk here — `mu` is genuinely the shared component's rate — but note
-that `mu` is *not* the mean of either response individually.
+$$
+P(y_{\text{em}}=x,\, y_{\text{lb}}=y)
+  = \sum_{k=0}^{\min(x,y)}
+    f_{\text{s}}(k)\, f_{10}(x-k)\, f_{01}(y-k),
+$$
+
+where $f_{\text{s}}, f_{10}, f_{01}$ are the pmfs of the three latent counts.
+Two consequences follow directly and are worth internalising:
+
+- **The margins.** $\operatorname{E}[y_{\text{em}}] = \text{mu} +
+  \lambda_{\text{em}}$ and likewise for $y_{\text{lb}}$;
+  $\operatorname{Cov}(y_{\text{em}}, y_{\text{lb}}) =
+  \operatorname{Var}(N_{\text{shared}})$, so the correlation is
+  $\operatorname{Var}(N_{\text{shared}}) / \sqrt{\operatorname{Var}(y_{\text{em}})\operatorname{Var}(y_{\text{lb}})}$.
+- **The difference.** $d = y_{\text{em}} - y_{\text{lb}} = N_{10} - N_{01}$ —
+  the shared count *cancels*. So the difference depends only on the two private
+  components, exactly the quantity a difference family models. For the Poisson
+  case this difference is precisely Skellam$(\lambda_{\text{em}},
+  \lambda_{\text{lb}})$, tying the two suites together.
+
+### `bipois` vs `binegbin`: overdispersion
+
+| Family | Latent law | Dispersion | Var of each latent | Use when |
+|---|---|---|---|---|
+| `bipois()` | Poisson | none | $\operatorname{Var}=\text{mean}$ | margins are **not** overdispersed |
+| `binegbin()` | negative-binomial | scalar `shapes` (shared), `shapex` (private) | $m + m^2/\phi$ | margins **are** overdispersed (the usual case) |
+
+With Poisson latents, each component has $\operatorname{Var}=\text{mean}$, so
+`bipois` cannot represent overdispersed margins and underfits the marginal
+(and difference) variance of real count data. `binegbin` replaces each latent
+with a negative-binomial, $N \sim \text{NB2}(m, \phi)$ — Stan's
+`neg_binomial_2`, R's `dnbinom(size = φ, mu = m)` — with mean $m$ and variance
+$m + m^2/\phi$. It carries the extra spread in two **scalar** dispersion dpars:
+`shapes` $=\phi_{\text{s}}$ for the shared count, `shapex` $=\phi_{\text{x}}$
+shared across both private counts. The moments become
+
+$$
+\operatorname{Var}(y_{\text{em}}) = \Big(\text{mu}+\tfrac{\text{mu}^2}{\phi_{\text{s}}}\Big)
+  + \Big(\lambda_{\text{em}}+\tfrac{\lambda_{\text{em}}^2}{\phi_{\text{x}}}\Big),
+\qquad
+\operatorname{Cov}(y_{\text{em}},y_{\text{lb}}) = \text{mu}+\tfrac{\text{mu}^2}{\phi_{\text{s}}},
+$$
+
+and, with $\lambda_{\text{em}}=\lambda_{\text{lb}}=\lambda$,
+$\operatorname{Var}(d) = 2\big(\lambda + \lambda^2/\phi_{\text{x}}\big)$. As
+$\phi_{\text{s}},\phi_{\text{x}}\to\infty$ the negative-binomials collapse to
+Poissons and `binegbin` $\to$ `bipois`.
+
+**Why scalar dispersion, not a random effect.** The obvious alternative — a
+per-observation random effect (OLRE) on the private components — was tried and
+rejected. With one pair per unit but three latent deviates per unit, the excess
+deviates act as residual absorbers: their population SD collapses toward the
+prior, and drawing fresh deviates fails to regenerate the observed spread
+(recovered excess SD $0.37$ vs true $0.85$; fresh-draw $\operatorname{Var}(d)$
+$2.9$ vs true $19.2$ in the motivating case). A *conditional*
+posterior-predictive check hides this entirely; only a **marginal**
+(fresh-draw) check exposes it. Scalar `shapes`/`shapex` are identified from the
+aggregate mean–variance mismatch across units instead, with no per-unit
+overfitting.
+
+### `binegbin_joint`: partially-observed pairs (censoring)
+
+`binegbin_joint` is `binegbin` extended to rows where $y_{\text{em}}$ was
+**not observed** — the second margin is censored, not matched. Each row carries
+a second `vint()` integer, an `em_obs` $\in\{0,1\}$ flag:
+
+- **`em_obs == 1` (matched):** the full `binegbin` joint lpmf on
+  $(y_{\text{em}}, y_{\text{lb}})$ — identical, term for term.
+- **`em_obs == 0` (LB-only):** the $y_{\text{em}}$-**integrated marginal** of
+  that *same* joint,
+
+$$
+P(y_{\text{lb}}=y) = \sum_{k=0}^{y} f_{\text{s}}(k)\, f_{01}(y-k),
+$$
+
+  i.e. the joint with $N_{10}$ summed out (the inner sum over $y_{\text{em}}$
+  telescopes to $1$). This is a convolution of the shared and LB-excess
+  negative-binomials — **not** a separate single-dispersion `neg_binomial_2`
+  on $y_{\text{lb}}$, which would be a different, incoherent model.
+
+One `brm()` call thus pools matched and censored rows under one likelihood.
+$\lambda_{\text{em}}$ and the EM/LB bias are identified **only** by the matched
+rows; the censored rows sharpen `mu`, `shapes`, $\lambda_{\text{lb}}$, and any
+shared random-effect structure. See [Limitations](#limitations) for the
+identifiability caveat this implies.
+
+### Usage
 
 ```r
 library(brms)
@@ -110,50 +300,74 @@ library(skellambrms)
 fit_bp <- brm(
   bf(y_em | vint(y_lb) ~ 1,
      mu ~ 1 + (1 | vessel), lambdaem ~ 1, lambdalb ~ 1),
-  data     = dat,
-  family   = bipois(),
-  stanvars = bipois_stanvars(),
-  chains   = 4
+  data = dat, family = bipois(), stanvars = bipois_stanvars(), chains = 4
 )
 
-# binegbin(): joint bivariate Negative-Binomial (overdispersed margins)
+# binegbin(): joint bivariate negative-binomial (overdispersed margins)
 fit_nb <- brm(
   bf(y_em | vint(y_lb) ~ 1,
      mu ~ 1 + (1 | vessel),
-     nlf(lambdaem ~ exp(lamx)), nlf(lambdalb ~ exp(lamx)), lamx ~ 1,
+     nlf(lambdaem ~ lamx), nlf(lambdalb ~ lamx), lamx ~ 1,
      shapes ~ 1, shapex ~ 1, nl = TRUE),
-  data     = dat,
-  family   = binegbin(),
-  stanvars = binegbin_stanvars(),
-  chains   = 4
+  data = dat, family = binegbin(), stanvars = binegbin_stanvars(), chains = 4
+)
+
+# binegbin_joint(): same model, but y_em is unobserved where em_obs == 0
+fit_cj <- brm(
+  bf(y_em | vint(y_lb, em_obs) ~ 1,
+     mu ~ 1 + (1 | vessel) + (1 | vessel:trip_id),
+     nlf(lambdaem ~ lamx + methd),
+     nlf(lambdalb ~ lamx - methd),
+     lamx ~ 1, methd ~ 1, shapes ~ 1, shapex ~ 1, nl = TRUE),
+  data = dat, family = binegbin_joint(), stanvars = binegbin_joint_stanvars(),
+  chains = 4
 )
 ```
 
-The `nlf(... exp(lamx))` idiom above ties the two private rates to a shared
-value (a "no systematic bias" assumption, `E[y_em] = E[y_lb]`); drop it and
-give `lambdaem`/`lambdalb` free intercepts to allow a mean difference. For
-either family, `posterior_predict()` simulates `y_em` conditional on the
-observed `y_lb` — for `bipois()` via the closed-form
-`Binomial(y_lb, mu/(mu + lambdalb))` split, for `binegbin()` via the discrete
-`N_shared | y_lb` conditional. Truncation (`resp_trunc()`) does not apply to
-these joint families.
+The `nlf(lambdaem ~ lamx)` / `nlf(lambdalb ~ lamx)` idiom ties the two private
+rates to one value — a "no systematic bias" assumption,
+$\operatorname{E}[y_{\text{em}}]=\operatorname{E}[y_{\text{lb}}]$. Splitting
+them as `lamx + methd` / `lamx - methd` introduces a directional bias parameter
+`methd` (half the log ratio of the two excess rates); giving the two rates
+separate predictors (`nlf(lambdaem ~ lem)`, `nlf(lambdalb ~ llb)`, `lem ~ 1`,
+`llb ~ 1`) is the fully unconstrained version.
 
-### A naming quirk to be aware of
+The second count (and, for `binegbin_joint`, the flag) travel via `vint()`
+because `custom_family()` declares a single response column —
+`vint(y_lb, em_obs)` binds `vint1 = y_lb`, `vint2 = em_obs` in listed order.
 
-`brms::custom_family()` unconditionally requires one `dpars` entry to be
-literally named `"mu"`. For `skellam1()`, `dlaplace1()`, and `dnorm1()`,
-that forced `"mu"` dpar is actually `sigma` — the mean is structurally
-zero and isn't represented as a dpar at all. If you inspect
-`brms::make_stancode()` output or call `brms::get_dpar(prep, "mu")` for one
-of these three families, you're looking at `sigma`, not a mean. All R-side
-functions in this package immediately rebind that dpar to a variable
-called `sigma`, so nothing else in the package (or in this README) ever
-calls it `mu`. `skellam2()`, `dlaplace2()`, and `dnorm2()` don't have this
-issue — their `mu` genuinely is the mean.
+### Prediction
 
-Separately, `skellam2()`'s excess-spread parameter is spelled
-`sigmaexcess`, not `sigma_excess`: `brms::custom_family()` disallows dots
-and underscores in `dpars` names.
+`posterior_predict()` simulates $y_{\text{em}}$ **conditional on the observed
+$y_{\text{lb}}$** (which is fixed data, not itself re-simulated):
+
+- **`bipois`:** the conditional split is closed-form,
+  $N_{\text{shared}}\mid y_{\text{lb}} \sim \text{Binomial}\big(y_{\text{lb}},\,
+  \text{mu}/(\text{mu}+\lambda_{\text{lb}})\big)$, then a fresh $N_{10}$.
+- **`binegbin` / `binegbin_joint`:** a negative-binomial sum has no Binomial
+  conditional, so the discrete law $P(N_{\text{shared}}=k\mid y_{\text{lb}})
+  \propto f_{\text{s}}(k)\,f_{01}(y_{\text{lb}}-k)$ is sampled directly, then a
+  fresh $N_{10}$ added.
+- For `binegbin_joint`, `em_obs` is **ignored** at prediction time: every row
+  (matched and censored alike) gets a conditional $y_{\text{em}}$ draw, so you
+  can impute the unobserved margin fleet-wide.
+
+## Parameterisation and naming notes
+
+**The forced `"mu"` dpar.** `brms::custom_family()` unconditionally requires one
+dpar to be named literally `"mu"`. For `skellam1()`, `dlaplace1()`, and
+`dnorm1()` — the fixed-mean families, whose mean is structurally $0$ and *not*
+a parameter — that forced `"mu"` slot actually holds `sigma`. If you read
+`make_stancode()` output or call `get_dpar(prep, "mu")` for one of these three,
+you are looking at $\sigma$, not a mean. Every R-side function in the package
+immediately rebinds it to `sigma`, so nothing else ever calls it `mu`. For the
+joint families the same slot holds the shared *rate*, again not a response
+mean. The free-mean difference families (`skellam2/dlaplace2/dnorm2`) are the
+only ones whose `mu` genuinely is the mean.
+
+**`sigmaexcess`, not `sigma_excess`.** `custom_family()` disallows dots and
+underscores in dpar names, so `skellam2()`'s excess-spread parameter is spelled
+`sigmaexcess`.
 
 ## Installation
 
@@ -166,234 +380,113 @@ Stan and a C++ toolchain are required. On Windows, install
 [Rtools45](https://cran.r-project.org/bin/windows/Rtools/rtools45/rtools.html).
 Works with either rstan or cmdstanr as the brms backend.
 
-## Usage
-
-Every family follows the same pattern: pass `family = <family>()` and
-`stanvars = <family>_stanvars()` to `brm()`. Add `<family>_lccdf_stanvars()`
-to `stanvars` (combined via `+`) to also support truncation through
-`resp_trunc()`.
-
-### Skellam
-
-```r
-library(brms)
-library(skellambrms)
-
-# skellam1(): mean fixed at 0 -- do two sources agree on average?
-fit1 <- brm(
-  bf(delta | trunc(lb = neg_bound) ~ 1 + (1 | group)),
-  data     = dat,
-  family   = skellam1(),
-  stanvars = skellam1_stanvars() + skellam1_lccdf_stanvars(),
-  chains   = 4
-)
-
-# skellam2(): free mean -- how large and how uncertain is the disagreement?
-fit2 <- brm(
-  bf(delta | trunc(lb = neg_bound) ~ 1 + x, sigmaexcess ~ 1),
-  data     = dat,
-  family   = skellam2(),
-  stanvars = skellam2_stanvars() + skellam2_lccdf_stanvars(),
-  chains   = 4
-)
-```
-
-### Discrete Laplace
-
-```r
-# dlaplace1(): mean fixed at 0
-fit3 <- brm(
-  bf(delta | trunc(lb = neg_bound) ~ 1 + (1 | group)),
-  data     = dat,
-  family   = dlaplace1(),
-  stanvars = dlaplace1_stanvars() + dlaplace1_lccdf_stanvars(),
-  chains   = 4
-)
-
-# dlaplace2(): free mean and free scale, structurally uncoupled
-fit4 <- brm(
-  bf(delta | trunc(lb = neg_bound) ~ 1 + x, sigma ~ 1),
-  data     = dat,
-  family   = dlaplace2(),
-  stanvars = dlaplace2_stanvars() + dlaplace2_lccdf_stanvars(),
-  chains   = 4
-)
-```
-
-### Discrete normal
-
-```r
-# dnorm1(): mean fixed at 0
-fit5 <- brm(
-  bf(delta | trunc(lb = neg_bound) ~ 1 + (1 | group)),
-  data     = dat,
-  family   = dnorm1(),
-  stanvars = dnorm1_stanvars() + dnorm1_lccdf_stanvars(),
-  chains   = 4
-)
-
-# dnorm2(): free mean and free scale, structurally uncoupled
-fit6 <- brm(
-  bf(delta | trunc(lb = neg_bound) ~ 1 + x, sigma ~ 1),
-  data     = dat,
-  family   = dnorm2(),
-  stanvars = dnorm2_stanvars() + dnorm2_lccdf_stanvars(),
-  chains   = 4
-)
-```
-
-`neg_bound` in these examples is a column giving a (possibly row-varying)
-lower truncation bound, e.g. `-y_lb` where `y_lb` is how far below zero the
-response could plausibly have gone for that row. All families support
-arbitrary `brms` formula syntax, including random effects, non-linear
-predictors on the spread dpars, and (for the free-mean families) on `mu`
-too.
-
-## Truncation
-
-Each family exports a `<family>_lccdf_stanvars()` function that adds a
-`brms::stanvar()` defining a Stan function named `<family>_lccdf` — the log
-complementary CDF, `log P(Z > y)`. `brms`'s `resp_trunc()` machinery finds
-this function purely by name convention (`<family>_lccdf`, matching the
-family name) and uses it to compute the log-normalisation constant for the
-truncated likelihood, including a row-varying lower bound. No further
-wiring is required beyond adding the stanvar to your `stanvars` argument,
-as shown above.
-
-For `skellam1()` and `skellam2()`, the exact log-CCDF is an iterative
-tail-sum over the Bessel-function PMF. Above a configurable
-`normal_approx_threshold` (default `100`, measured on the underlying
-`mu_skellam` scale — `sigma^2/2` for `skellam1()`, `(theta1 + theta2)/2`
-for `skellam2()`), this exact sum is replaced by a normal approximation.
-This guards against two confirmed numerical failure modes that can occur
-during HMC warmup, when an unadapted proposal pushes the spread parameter
-to an extreme value (the log link places no ceiling on it): a crash from
-evaluating the Bessel function at an enormous order, and a much slower
-blow-up in cost and memory when many rows within a single deep NUTS tree
-each hit the expensive exact loop. Read `?skellam1_lccdf_stanvars` and the
-comments in `R/family.R` for the full rationale and guidance on choosing a
-threshold appropriate to your own data's scale.
-
-`dlaplace1()`/`dlaplace2()` and `dnorm1()`/`dnorm2()` have closed-form
-log-CCDFs (built on `double_exponential_lcdf` for the Laplace families and
-an exact `erfc()`-based survival function for the normal families), so
-their `_lccdf_stanvars()` functions take no threshold argument — there is
-no large-argument failure mode to guard against.
-
-`posterior_predict_<family>()` and `posterior_epred_<family>()` correctly
-account for `resp_trunc()` bounds too (as of `skellambrms` 0.3.1) — see
-Limitations below for an important caveat about `brms::posterior_epred()`
-specifically on truncated fits.
-
 ## Limitations
 
-**`brms::posterior_epred()` — and anything built on it, including
-`fitted()` and `conditional_effects()` — errors on any truncated fit, for
-all six families here.** This is a `brms` limitation, not this package's:
-`brms`'s internal `posterior_epred.brmsprep()` checks whether the model is
-truncated *before* checking whether the family is a custom one, and
-unconditionally routes truncated fits to `brms:::posterior_epred_trunc()`.
-That function has no fallback to a custom family's own
-`posterior_epred_<family>()` on the truncated branch — it looks for a
-generic `posterior_epred_trunc_custom()` inside `brms`'s own namespace,
-which doesn't exist for *any* custom family, truncated or not. Confirmed
-directly against the installed `brms` source
-(`brms:::posterior_epred_trunc`); the error raised is `"posterior_epred
-values on the respone scale not yet implemented for truncated 'custom'
-models"`.
-
-**Workaround:** call the family's `posterior_epred_<family>()` directly on
-a real `prepare_predictions()` object, bypassing `brms`'s generic dispatch:
+**`posterior_epred()` errors on truncated fits (a `brms` limitation).**
+`brms::posterior_epred()` — and everything built on it, including `fitted()`
+and `conditional_effects()` — errors on *any* truncated custom-family fit.
+`brms`'s `posterior_epred.brmsprep()` checks truncation *before* family type
+and routes truncated fits to `brms:::posterior_epred_trunc()`, which has no
+fallback to a custom family's own `posterior_epred_<family>()` (it looks for a
+non-existent `posterior_epred_trunc_custom()`). This is `brms`'s dispatch, not
+this package's computation. **Workaround** — call the family method directly:
 
 ```r
 prep  <- brms::prepare_predictions(fit)
-epred <- posterior_epred_dnorm2(prep)  # or posterior_epred_skellam1(), etc.
+epred <- posterior_epred_dnorm2(prep)   # or skellam1(), etc.
 ```
 
-Each family's `posterior_epred_<family>()` correctly accounts for
-`resp_trunc()` bounds when called this way — the underlying computation
-isn't the problem, only `brms`'s own generic dispatch is.
+Each family's `posterior_epred_<family>()` accounts for `resp_trunc()` bounds
+correctly when called this way. `posterior_predict()` is unaffected and works
+for truncated fits of every family.
 
-`brms::posterior_predict()` is unaffected by this and works correctly for
-truncated fits of every family — its dispatch calls the family's own
-`posterior_predict_<family>()` unconditionally and only checks truncation
-bounds afterwards, with no analogous gate.
+**Joint families do not support truncation.** `resp_trunc()` does not apply to
+`bipois`/`binegbin`/`binegbin_joint`; no `_lccdf_stanvars()` is provided for
+them.
+
+**`posterior_epred` for the joint families.** `bipois` returns the exact
+$\operatorname{E}[y_{\text{em}}\mid y_{\text{lb}}]$; `binegbin`'s is a point
+*approximation* (no closed-form conditional mean for a negative-binomial sum —
+use `posterior_predict()` for exact conditional simulation); `binegbin_joint`
+defines **no** `posterior_epred` at all, so use `posterior_predict()` for it.
+
+**`binegbin_joint` identifiability.** Because $\lambda_{\text{em}}$ and the
+EM/LB bias are informed only by the matched (`em_obs == 1`) rows, a fit with
+few matched rows will learn the bias weakly even if the total sample is large;
+the censored rows add power for the shared/level parameters, not the bias. Fits
+that lean on the bias should be judged against the matched subset, not the full
+$n$.
 
 ## Testing
 
-The test suite (`tests/testthat/`) validates, for every family:
+For every **difference** family the suite (`tests/testthat/`) checks:
 
 - The R-side log-PMF and log-CCDF against a trusted external reference —
-  `skellam::dskellam()`/`pskellam()` for the Skellam families, and a
-  hand-derived, numerically stable log-space CDF-differencing reference for
-  the discrete Laplace and discrete normal families (`extraDistr::ddlaplace()`
-  was checked and found to implement a *different* discrete Laplace, so it
-  isn't usable as a reference).
-- That the PMF sums to 1 across a grid of parameter values.
-- Numerical stability (no `NaN`/`Inf`) across a "realistic-but-stressed"
-  range of parameter values, including deep into the tails.
-- That the Stan implementations of the log-PMF and log-CCDF agree with the
-  R-side references, once exposed via `rstan::expose_stan_functions()`.
-- For `skellam1()`/`skellam2()`, that the exact and normal-approximation
-  branches of the log-CCDF agree closely at the threshold seam, and that
-  changing `normal_approx_threshold` actually moves the cutover point.
-- Structural (not rejection-based) enforcement of validity constraints, by
-  inspecting `brms::make_stancode()` output directly: `skellam2()`'s
-  `theta1, theta2 >= 0` constraint and `dlaplace2()`/`dnorm2()`'s lack of
-  any constraint coupling `mu` and `sigma`.
-- That the free-mean families (`skellam2()`, `dlaplace2()`, `dnorm2()`)
-  reduce exactly to their fixed-mean counterparts at `mu = 0`.
-- End-to-end parameter recovery: fitting each family with `brm()` (using
-  `cmdstanr`) to simulated data — including truncated data via
-  `resp_trunc()` — and checking that the true generating parameters fall
-  within the posterior credible interval, alongside divergence and Rhat
-  checks.
-- That `log_lik_<family>()` and the internal R-side `_lpmf_r()`/`_lccdf_r()`
-  helpers return one value per posterior draw for a single observation, not
-  just for a vector of observations — the direction that silently broke
-  `log_lik_dlaplace1()` (and hence `loo()`) prior to 0.3.2, since R's
-  `ifelse()` takes its output length from its test argument alone.
+  `skellam::dskellam()`/`pskellam()` for Skellam, and a hand-derived,
+  numerically stable log-space CDF-differencing reference for the discrete
+  Laplace and discrete normal (`extraDistr::ddlaplace()` implements a
+  *different* discrete Laplace and is unusable as a reference).
+- PMF sums to $1$ across a parameter grid; numerical stability (no `NaN`/`Inf`)
+  across a realistic-but-stressed range, deep into the tails.
+- Stan log-PMF/log-CCDF agree with the R references via
+  `rstan::expose_stan_functions()`.
+- For Skellam, the exact and normal-approx log-CCDF branches agree at the
+  threshold seam, and changing `normal_approx_threshold` moves the cutover.
+- Structural (not rejection-based) validity, by inspecting `make_stancode()`:
+  `skellam2()`'s $\theta_1,\theta_2\ge 0$ constraint, and the *absence* of
+  coupling in `dlaplace2()`/`dnorm2()`.
+- Free-mean families reduce exactly to their fixed-mean counterparts at
+  $\mu=0$.
+- End-to-end parameter recovery from simulated (and truncated) data, with
+  divergence/Rhat checks.
+- That `log_lik_<family>()` and the internal `_lpmf_r()`/`_lccdf_r()` helpers
+  return one value **per posterior draw** for a single observation — the
+  direction that silently broke `log_lik_dlaplace1()` (and `loo()`) before
+  0.3.2, since R's `ifelse()` takes its length from its test argument.
 
-For the joint families (`bipois()`, `binegbin()`) the suite instead validates
-the marginalised joint log-PMF against an independent R brute-force reference
-across a rate/shape grid and at extreme edge cases, checks that it normalises
-to 1, checks the analytic moment identities (mean, marginal variance,
-difference variance, covariance), confirms `binegbin()` reduces to `bipois()`
-in the Poisson limit (`shapes`, `shapex` → ∞), and runs end-to-end parameter
-recovery from simulated hierarchical data with divergence/Rhat checks.
+For every **joint** family the suite validates the marginalised joint log-PMF
+against an independent R brute-force reference across a rate/shape grid and at
+edge cases; normalisation to $1$; the analytic moment identities (mean,
+marginal variance, difference variance, covariance); the Poisson-limit
+reduction `binegbin` $\to$ `bipois`; and end-to-end recovery with
+divergence/Rhat checks. For `binegbin_joint` it additionally pins the
+**marginal identity** ($\sum_{y_{\text{em}}}$ of the matched branch equals the
+LB-only branch), the **equivalence** to `binegbin` on `em_obs == 1` rows (R and
+Stan), and the **conditional-prediction identity** (`posterior_predict` draws
+match joint/marginal), plus a censored end-to-end fit verifying
+`loo()`/`posterior_predict()` dispatch.
 
-## Functions
+## Function reference
+
+**Difference families** — each exports the family object, its `_stanvars()`,
+and a `_lccdf_stanvars()` for truncation, plus `log_lik_`,
+`posterior_predict_`, and `posterior_epred_` interface functions.
 
 | Function | Purpose |
 |---|---|
-| `skellam1()` | Custom family object for `skellam1` (mean fixed at 0) |
-| `skellam1_stanvars()` | Stan code block for `skellam1` |
-| `skellam1_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `skellam1` |
-| `skellam2()` | Custom family object for `skellam2` (free mean) |
-| `skellam2_stanvars()` | Stan code block for `skellam2` |
-| `skellam2_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `skellam2` |
-| `skellam2_dpars()` | Reports `mu`, `sigma`, `sigmasq`, `theta1`, `theta2` from a fitted `skellam2()` model, computed in R via `get_dpar()` |
-| `dlaplace1()` | Custom family object for `dlaplace1` (mean fixed at 0) |
-| `dlaplace1_stanvars()` | Stan code block for `dlaplace1` |
-| `dlaplace1_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `dlaplace1` |
-| `dlaplace2()` | Custom family object for `dlaplace2` (free mean and scale) |
-| `dlaplace2_stanvars()` | Stan code block for `dlaplace2` |
-| `dlaplace2_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `dlaplace2` |
-| `dnorm1()` | Custom family object for `dnorm1` (mean fixed at 0) |
-| `dnorm1_stanvars()` | Stan code block for `dnorm1` |
-| `dnorm1_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `dnorm1` |
-| `dnorm2()` | Custom family object for `dnorm2` (free mean and scale) |
-| `dnorm2_stanvars()` | Stan code block for `dnorm2` |
-| `dnorm2_lccdf_stanvars()` | Stan log-CCDF block enabling `resp_trunc()` support for `dnorm2` |
-| `bipois()` | Custom family object for the joint bivariate Poisson |
-| `bipois_stanvars()` | Stan code block for `bipois` |
-| `binegbin()` | Custom family object for the joint bivariate Negative-Binomial |
-| `binegbin_stanvars()` | Stan code block for `binegbin` |
+| `skellam1()` / `skellam1_stanvars()` | Symmetric Skellam (mean $0$) |
+| `skellam1_lccdf_stanvars()` | Truncation log-CCDF for `skellam1` |
+| `skellam2()` / `skellam2_stanvars()` | Asymmetric Skellam (free mean) |
+| `skellam2_lccdf_stanvars()` | Truncation log-CCDF for `skellam2` |
+| `skellam2_dpars()` | Reports `mu`, `sigma`, `sigmasq`, `theta1`, `theta2` from a fitted `skellam2()` (via `get_dpar()`) |
+| `dlaplace1()` / `dlaplace1_stanvars()` / `dlaplace1_lccdf_stanvars()` | Discrete Laplace (mean $0$) |
+| `dlaplace2()` / `dlaplace2_stanvars()` / `dlaplace2_lccdf_stanvars()` | Discrete Laplace (free mean and scale) |
+| `dnorm1()` / `dnorm1_stanvars()` / `dnorm1_lccdf_stanvars()` | Discrete normal (mean $0$) |
+| `dnorm2()` / `dnorm2_stanvars()` / `dnorm2_lccdf_stanvars()` | Discrete normal (free mean and scale) |
 
-Each family also exports `log_lik_<family>()`, `posterior_predict_<family>()`,
-and `posterior_epred_<family>()` — the standard `brms` custom-family
-interface functions, located by `brms` via name convention and not normally
-called directly.
+**Joint families** — each exports the family object, its `_stanvars()`, and
+`log_lik_` / `posterior_predict_` interface functions (`posterior_epred_` for
+`bipois`/`binegbin` only).
+
+| Function | Purpose |
+|---|---|
+| `bipois()` / `bipois_stanvars()` | Joint bivariate Poisson |
+| `binegbin()` / `binegbin_stanvars()` | Joint bivariate negative-binomial (overdispersed margins) |
+| `binegbin_joint()` / `binegbin_joint_stanvars()` | Censoring-aware bivariate negative-binomial (partially-observed second margin) |
+
+The `log_lik_`, `posterior_predict_`, and `posterior_epred_` functions are
+located by `brms` via name convention and are not normally called directly
+(except for the truncated-`posterior_epred` workaround above).
 
 ## References
 
@@ -402,8 +495,8 @@ Poisson Variates Belonging to Different Populations. *Journal of the Royal
 Statistical Society* 109:296.
 
 Holgate P (1964) Estimation for the Bivariate Poisson Distribution.
-*Biometrika* 51:241–245. (The trivariate-reduction construction underlying
-`bipois()` and `binegbin()`.)
+*Biometrika* 51:241–245. (The trivariate-reduction construction underlying the
+joint families.)
 
 Karlis D, Ntzoufras I (2003) Analysis of Sports Data by Using Bivariate
 Poisson Models. *Journal of the Royal Statistical Society: Series D (The

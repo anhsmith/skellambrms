@@ -152,8 +152,8 @@ test_that("binegbin parameter recovery from simulated vessel-level data", {
       brms::bf(
         y_em | vint(y_lb) ~ 1,
         mu ~ 1 + (1 | vessel),
-        brms::nlf(lambdaem ~ exp(lamx)),
-        brms::nlf(lambdalb ~ exp(lamx)),
+        brms::nlf(lambdaem ~ lamx),
+        brms::nlf(lambdalb ~ lamx),
         lamx ~ 1, shapes ~ 1, shapex ~ 1, nl = TRUE
       ),
       family   = binegbin(),

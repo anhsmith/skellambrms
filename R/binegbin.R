@@ -72,11 +72,10 @@
 #'
 #' Five dpars: the three rates (`mu` = shared rate, `lambdaem`/`lambdalb` =
 #' EM-/LB-only rates) plus two dispersions -- `shapes` for the shared
-#' component and `shapex` shared across the two excess components. `mu`,
-#' `shapes`, `shapex` use `link = "log"`; `lambdaem`/`lambdalb` use
-#' `link = "identity"` so they can be supplied already-positive via an
-#' `exp()` non-linear formula (the same convention 05-10 uses for the
-#' shared-excess-rate `bipois` parameterisation).
+#' component and `shapex` shared across the two excess components. All five
+#' use `link = "log"`. Supply the excess rates through a non-linear formula
+#' without an explicit `exp()` (the log link applies it): `nlf(lambdaem ~ lamx)`
+#' gives `lambdaem = exp(lamx)`.
 #'
 #' See the `binegbin.R` file header and the `tnc001-belize-em` project docs
 #' (05-07 generative rationale; the OLRE-failure / NegBin-resolution finding)
@@ -87,7 +86,7 @@
 #'   brm(
 #'     bf(y_em | vint(y_lb) ~ 1,
 #'        mu ~ 1 + (1 | vessel),
-#'        nlf(lambdaem ~ exp(lamx)), nlf(lambdalb ~ exp(lamx)), lamx ~ 1,
+#'        nlf(lambdaem ~ lamx), nlf(lambdalb ~ lamx), lamx ~ 1,
 #'        shapes ~ 1, shapex ~ 1, nl = TRUE),
 #'     family   = binegbin(),
 #'     stanvars = binegbin_stanvars(),
@@ -115,7 +114,7 @@ binegbin <- function() {
   brms::custom_family(
     name  = "binegbin",
     dpars = c("mu", "lambdaem", "lambdalb", "shapes", "shapex"),
-    links = c("log", "identity", "identity", "log", "log"),
+    links = c("log", "log", "log", "log", "log"),
     lb    = c(0, 0, 0, 0, 0),
     type  = "int",
     vars  = "vint1[n]"

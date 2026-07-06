@@ -1,7 +1,7 @@
 Package: skellambrms
 Title: Skellam, Discrete-Difference, and Joint Bivariate-Count brms
     Custom Families
-Version: 0.4.0
+Version: 0.5.0
 Authors@R: person("Adam N. H.", "Smith", , "anhsmith@gmail.com", role = c("aut", "cre"))
 Description: Provides custom brms families for comparing two paired count
     sources, via two complementary approaches. First, families that model the
@@ -16,8 +16,10 @@ Description: Provides custom brms families for comparing two paired count
     bivariate Poisson (bipois) and its overdispersed bivariate
     Negative-Binomial sibling (binegbin) -- that model a matched pair of
     counts jointly, capturing their correlation, marginal overdispersion, and
-    difference together rather than the difference alone. Intended for
-    modelling set-level agreement between paired count sources.
+    difference together rather than the difference alone, plus a
+    censoring-aware extension (binegbin_joint) that admits rows on which one
+    of the two counts is unobserved via its integrated-out marginal. Intended
+    for modelling set-level agreement between paired count sources.
 License: MIT + file LICENSE
 Encoding: UTF-8
 RoxygenNote: 7.3.3

@@ -1,3 +1,46 @@
+# skellambrms 0.5.0
+
+* **Breaking (link change):** `binegbin()` and `binegbin_joint()` now log-link
+  `lambdaem`/`lambdalb` (previously identity), so all five dpars are log-linked
+  — the conventional log-linear rate parameterisation (Karlis & Ntzoufras 2003)
+  and consistent with `bipois()`. brms applies the link *on top of* a
+  non-linear formula, so the shared-excess idiom now drops the explicit
+  `exp()`: write `nlf(lambdaem ~ lamx)` (the log link exponentiates) rather
+  than `nlf(lambdaem ~ exp(lamx))`, which under the new link would
+  double-exponentiate. The generated model, and hence the posterior, is
+  identical to the old identity-link + explicit-`exp()` form; only the formula
+  syntax changes. Migration: remove the `exp()` from every `nlf()` on
+  `lambdaem`/`lambdalb`. Plain `lambdaem ~ 1` now gives a clean log-scale
+  intercept instead of a bounded natural-scale one.
+* Added `binegbin_joint()` / `binegbin_joint_stanvars()`: a **censoring-aware
+  extension of `binegbin()`** for data in which the EM margin (`y_em`) is
+  observed on only some rows. The same trivariate-reduction bivariate
+  Negative-Binomial model and five dpars as `binegbin()`, but each row carries
+  a second `vint()` integer, an `em_obs` 0/1 flag: on `em_obs == 1` (matched)
+  rows the likelihood is the full joint `binegbin` lpmf on `(y_em, y_lb)`; on
+  `em_obs == 0` (LB-only) rows it is the `y_em`-integrated marginal of that
+  same joint (`sum_k NB2(k | mu, shapes) NB2(y_lb - k | lambdalb, shapex)`) --
+  not a separate single-dispersion `neg_binomial_2` on `y_lb`. One `brm()`
+  call thus pools matched and LB-only rows under one coherent likelihood:
+  `lambdaem` and the EM/LB bias are identified only by the matched rows, while
+  the LB-only rows sharpen `mu`, `shapes`, `lambdalb`, and the shared
+  vessel/trip random-effect structure.
+* The second count and the flag travel via `vint(y_lb, em_obs)`
+  (`vint1 = y_lb`, `vint2 = em_obs`). `binegbin_joint()` exports the standard
+  `log_lik_binegbin_joint()` and `posterior_predict_binegbin_joint()`
+  interface functions; the latter simulates `y_em` conditional on the observed
+  `y_lb` for **every** row (matched and LB-only alike, ignoring `em_obs`) via
+  the same discrete `N_shared | y_lb` conditional as `binegbin()`.
+* On `em_obs == 1` rows `binegbin_joint`'s lpmf equals `binegbin`'s exactly;
+  the suite pins this equivalence (R reference and Stan), the marginal
+  identity (sum over `y_em` of the matched branch == the LB-only branch), and
+  the conditional-prediction identity (`posterior_predict` draws ==
+  joint / marginal), alongside normalisation, a Stan-vs-R grid cross-check to
+  ~1e-14, numerical-stability edge cases, and a censored brms end-to-end fit
+  that verifies `loo()`/`posterior_predict()` dispatch and parameter recovery.
+* Truncation (`resp_trunc()`) is not applicable to this joint family and no
+  `_lccdf_stanvars()` is provided.
+
 # skellambrms 0.4.0
 
 * Added the first **joint bivariate-count families**, a different modelling
