@@ -1,0 +1,295 @@
+# Getting started with pairedcountbrms
+
+``` r
+
+library(brms)
+#> Warning: package 'Rcpp' was built under R version 4.6.1
+library(pairedcountbrms)
+```
+
+This vignette walks the package’s R API end to end on one family,
+[`binegbin()`](https://anhsmith.github.io/pairedcountbrms/reference/binegbin.md):
+simulate a matched pair of counts from known parameters, fit them, check
+that the posterior finds the truth, and then predict and score. The
+other joint family
+([`bipois()`](https://anhsmith.github.io/pairedcountbrms/reference/bipois.md))
+works identically with two fewer dpars; the difference families
+([`skellam1()`](https://anhsmith.github.io/pairedcountbrms/reference/skellam1.md),
+[`dnorm2()`](https://anhsmith.github.io/pairedcountbrms/reference/dnorm2.md),
+and so on) are shown in the README.
+
+## The generative model
+
+[`binegbin()`](https://anhsmith.github.io/pairedcountbrms/reference/binegbin.md)
+builds a bivariate count pair by **trivariate reduction**. Three
+independent Negative-Binomial counts are drawn, and the two observed
+counts share one of them:
+
+``` math
+\begin{aligned}
+N_{\text{shared}} &\sim \mathrm{NB2}(\mu,\ \phi_s) \\
+N_{10} &\sim \mathrm{NB2}(\lambda_{\text{em}},\ \phi_x) \qquad
+N_{01} \sim \mathrm{NB2}(\lambda_{\text{lb}},\ \phi_x) \\[4pt]
+y_{\text{em}} &= N_{\text{shared}} + N_{10} \qquad
+y_{\text{lb}} = N_{\text{shared}} + N_{01}
+\end{aligned}
+```
+
+The shared component is what both sources saw; the two excesses are what
+each saw alone. $`N_{\text{shared}}`$ is never observed — it is
+marginalised out analytically in the likelihood — but it is what induces
+the correlation between the pair.
+
+`NB2(m, phi)` is Stan’s `neg_binomial_2` and R’s
+`dnbinom(size = phi, mu = m)`: mean `m`, variance `m + m^2/phi`. Larger
+`phi` means *less* overdispersion.
+
+Five dpars, all with a log link:
+
+| dpar       | role                                           |
+|------------|------------------------------------------------|
+| `mu`       | rate of the shared component                   |
+| `lambdaem` | rate of the first source’s excess              |
+| `lambdalb` | rate of the second source’s excess             |
+| `shapes`   | dispersion $`\phi_s`$ of the shared component  |
+| `shapex`   | dispersion $`\phi_x`$, shared by both excesses |
+
+`mu` is brms’s mandatory first-dpar name. Here it is bound to the shared
+component’s *rate* — it is not the mean of either response, and not the
+mean of their difference. `E[y_em] = mu + lambdaem`.
+
+## Simulate from known parameters
+
+``` r
+
+set.seed(20260724)
+
+n <- 400
+truth <- list(
+  mu       = 8,
+  lambdaem = 3,
+  lambdalb = 2,
+  shapes   = 4,
+  shapex   = 6
+)
+
+n_shared <- rnbinom(n, size = truth$shapes, mu = truth$mu)
+n10      <- rnbinom(n, size = truth$shapex, mu = truth$lambdaem)
+n01      <- rnbinom(n, size = truth$shapex, mu = truth$lambdalb)
+
+dat <- data.frame(
+  y_em = n_shared + n10,
+  y_lb = n_shared + n01
+)
+
+str(dat)
+#> 'data.frame':    400 obs. of  2 variables:
+#>  $ y_em: num  11 8 7 15 5 13 9 15 13 8 ...
+#>  $ y_lb: num  11 7 6 16 6 11 9 15 9 7 ...
+cor(dat$y_em, dat$y_lb)
+#> [1] 0.8911927
+```
+
+The correlation is positive and substantial because both counts carry
+the same `n_shared`. That shared term is exactly what a model of the
+difference alone throws away.
+
+## Fit
+
+Two things are specific to this package and easy to miss.
+
+**The second count travels via `vint()`.**
+[`brms::custom_family()`](https://paulbuerkner.com/brms/reference/custom_family.html)
+declares a single response column, so only `y_em` can be the response.
+`y_lb` is passed alongside as supplementary integer data, and the
+family’s Stan signature reads it from there.
+
+**`stanvars` is not optional.**
+[`binegbin_stanvars()`](https://anhsmith.github.io/pairedcountbrms/reference/binegbin.md)
+injects the `binegbin_lpmf` Stan function into the model’s `functions`
+block. Without it the generated model will not compile.
+
+``` r
+
+fit <- brm(
+  bf(
+    y_em | vint(y_lb) ~ 1,
+    lambdaem          ~ 1,
+    lambdalb          ~ 1,
+    shapes            ~ 1,
+    shapex            ~ 1
+  ),
+  family   = binegbin(),
+  stanvars = binegbin_stanvars(),
+  data     = dat,
+  prior    = c(
+    prior(normal(0, 3), class = "Intercept"),
+    prior(normal(0, 3), class = "Intercept", dpar = "lambdaem"),
+    prior(normal(0, 3), class = "Intercept", dpar = "lambdalb"),
+    prior(normal(1, 2), class = "Intercept", dpar = "shapes"),
+    prior(normal(1, 2), class = "Intercept", dpar = "shapex")
+  ),
+  chains  = 2,
+  iter    = 1500,
+  refresh = 0,
+  backend = backend,
+  seed    = 1
+)
+```
+
+The priors are deliberately weak and not centred on the truth —
+`normal(0, 3)` on a log rate spans roughly `[0.003, 400]`. With 400
+observations the data does the work.
+
+## Did it recover the truth?
+
+All five dpars are log-linked, so each posterior intercept exponentiates
+back onto the natural scale.
+
+``` r
+
+draws <- as_draws_df(fit)
+
+pars <- c(
+  mu       = "b_Intercept",
+  lambdaem = "b_lambdaem_Intercept",
+  lambdalb = "b_lambdalb_Intercept",
+  shapes   = "b_shapes_Intercept",
+  shapex   = "b_shapex_Intercept"
+)
+
+recovery <- do.call(rbind, lapply(names(pars), function(p) {
+  x <- exp(draws[[pars[[p]]]])
+  data.frame(
+    dpar  = p,
+    truth = truth[[p]],
+    est   = median(x),
+    lower = unname(quantile(x, 0.025)),
+    upper = unname(quantile(x, 0.975))
+  )
+}))
+recovery$covered <- with(recovery, truth >= lower & truth <= upper)
+
+knitr::kable(recovery, digits = 2)
+```
+
+| dpar     | truth |  est | lower | upper | covered |
+|:---------|------:|-----:|------:|------:|:--------|
+| mu       |     8 | 8.48 |  7.73 |  9.21 | TRUE    |
+| lambdaem |     3 | 2.78 |  2.29 |  3.41 | TRUE    |
+| lambdalb |     2 | 1.84 |  1.38 |  2.45 | TRUE    |
+| shapes   |     4 | 3.89 |  2.94 |  5.07 | TRUE    |
+| shapex   |     6 | 5.82 |  2.56 | 29.93 | TRUE    |
+
+The three rates should land tightly on their true values. The two
+dispersions are estimated from an aggregate mean–variance mismatch
+rather than from any directly observed quantity, so their intervals are
+wider — `shapex` especially, since it is identified only through the
+part of the pair’s spread that the shared component cannot explain. Wide
+but covering is the expected result here, not a warning sign.
+
+## Predict and score
+
+[`posterior_predict()`](https://mc-stan.org/rstantools/reference/posterior_predict.html)
+draws new `y_em` **conditional on each row’s observed `y_lb`**. It
+samples the discrete conditional distribution of $`N_{\text{shared}}`$
+given `y_lb`, then adds a fresh excess draw — the exact conditional, not
+an approximation.
+
+``` r
+
+yrep <- posterior_predict(fit, ndraws = 200)
+dim(yrep)
+#> [1] 200 400
+
+data.frame(
+  quantity = c("mean", "sd", "max"),
+  observed = c(mean(dat$y_em), sd(dat$y_em), max(dat$y_em)),
+  predicted = c(mean(yrep), mean(apply(yrep, 1, sd)), mean(apply(yrep, 1, max)))
+) |>
+  knitr::kable(digits = 2)
+```
+
+| quantity | observed | predicted |
+|:---------|---------:|----------:|
+| mean     |    11.25 |     11.27 |
+| sd       |     5.59 |      5.53 |
+| max      |    37.00 |     34.13 |
+
+[`log_lik()`](https://mc-stan.org/rstantools/reference/log_lik.html)
+gives the pointwise log-likelihood of the *joint* pair, evaluated by an
+independent R implementation of the same marginalisation sum that the
+Stan function computes. It feeds
+[`loo()`](https://mc-stan.org/loo/reference/loo.html) and
+[`waic()`](https://mc-stan.org/loo/reference/waic.html) in the usual
+way.
+
+``` r
+
+ll <- log_lik(fit)
+dim(ll)
+#> [1] 1500  400
+
+loo(fit)
+#> 
+#> Computed from 1500 by 400 log-likelihood matrix.
+#> 
+#>          Estimate   SE
+#> elpd_loo  -2146.4 22.7
+#> p_loo         4.9  0.5
+#> looic      4292.8 45.4
+#> ------
+#> MCSE of elpd_loo is 0.1.
+#> MCSE and ESS estimates assume MCMC draws (r_eff in [0.4, 1.4]).
+#> 
+#> All Pareto k estimates are good (k < 0.69).
+#> See help('pareto-k-diagnostic') for details.
+```
+
+## One limitation to know about
+
+[`posterior_epred()`](https://mc-stan.org/rstantools/reference/posterior_epred.html)
+— and its aliases
+[`fitted()`](https://rdrr.io/r/stats/fitted.values.html) and
+[`conditional_effects()`](https://paulbuerkner.com/brms/reference/conditional_effects.brmsfit.html)
+— **errors on any truncated custom-family fit** in brms 2.23.0. The
+dispatcher checks for truncation before it checks the family type, and
+the truncated branch has no fallback to `posterior_epred_custom()`. This
+is a brms limitation, not a bug in this package.
+
+On a truncated fit, call the family’s method directly:
+
+``` r
+
+posterior_epred_binegbin(prepare_predictions(fit))
+```
+
+[`posterior_predict()`](https://mc-stan.org/rstantools/reference/posterior_predict.html)
+and [`log_lik()`](https://mc-stan.org/rstantools/reference/log_lik.html)
+are unaffected and work correctly with truncation.
+
+## Where to go next
+
+- [`bipois()`](https://anhsmith.github.io/pairedcountbrms/reference/bipois.md)
+  — the non-overdispersed Poisson sibling. Same construction, three
+  dpars instead of five. Use it when the margins are not overdispersed;
+  compare the two with
+  [`loo()`](https://mc-stan.org/loo/reference/loo.html).
+- [`binegbin_joint()`](https://anhsmith.github.io/pairedcountbrms/reference/binegbin_joint.md)
+  — censoring-aware, for data where one of the two counts is missing on
+  some rows. It admits those rows via the integrated-out marginal
+  instead of dropping them.
+- [`skellam1()`](https://anhsmith.github.io/pairedcountbrms/reference/skellam1.md)
+  /
+  [`skellam2()`](https://anhsmith.github.io/pairedcountbrms/reference/skellam2.md),
+  [`dnorm1()`](https://anhsmith.github.io/pairedcountbrms/reference/dnorm1.md)
+  /
+  [`dnorm2()`](https://anhsmith.github.io/pairedcountbrms/reference/dnorm2.md),
+  [`dlaplace1()`](https://anhsmith.github.io/pairedcountbrms/reference/dlaplace1.md)
+  /
+  [`dlaplace2()`](https://anhsmith.github.io/pairedcountbrms/reference/dlaplace2.md)
+  — the difference families, which model `d = y_em - y_lb` directly. The
+  `1` variants fix the location at zero (does the pair agree on
+  average?); the `2` variants estimate it (by how much do they
+  disagree?). All support truncation through
+  [`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html).
