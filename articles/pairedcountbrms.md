@@ -18,12 +18,18 @@ works identically with two fewer dpars; the difference families
 [`dnorm2()`](https://anhsmith.github.io/pairedcountbrms/reference/dnorm2.md),
 and so on) are shown in the README.
 
+Everything here is a brms custom family ([Bürkner
+2017](#ref-burkner2017)), so the fitting, prediction and
+model-comparison interfaces are brms’s own. The non-linear formula
+syntax used further down is documented in Bürkner
+([2018](#ref-burkner2018)).
+
 ## The generative model
 
 [`binegbin()`](https://anhsmith.github.io/pairedcountbrms/reference/binegbin.md)
-builds a bivariate count pair by **trivariate reduction**. Three
-independent Negative-Binomial counts are drawn, and the two observed
-counts share one of them:
+builds a bivariate count pair by **trivariate reduction** ([Karlis and
+Ntzoufras 2003](#ref-karlis2003)). Three independent Negative-Binomial
+counts are drawn, and the two observed counts share one of them:
 
 ``` math
 \begin{aligned}
@@ -57,6 +63,10 @@ Five dpars, all with a log link:
 `mu` is brms’s mandatory first-dpar name. Here it is bound to the shared
 component’s *rate* — it is not the mean of either response, and not the
 mean of their difference. `E[y_em] = mu + lambdaem`.
+
+All five use a log link, the conventional log-linear rate
+parameterisation for this construction ([Karlis and Ntzoufras
+2003](#ref-karlis2003)).
 
 ## Simulate from known parameters
 
@@ -221,8 +231,10 @@ gives the pointwise log-likelihood of the *joint* pair, evaluated by an
 independent R implementation of the same marginalisation sum that the
 Stan function computes. It feeds
 [`loo()`](https://mc-stan.org/loo/reference/loo.html) and
-[`waic()`](https://mc-stan.org/loo/reference/waic.html) in the usual
-way.
+[`waic()`](https://mc-stan.org/loo/reference/waic.html) in the usual way
+([Vehtari et al. 2017](#ref-vehtari2017)). The Pareto $`k`$ diagnostic
+reported alongside the estimate flags observations whose importance
+weights are unreliable ([Vehtari et al. 2024](#ref-vehtari2024)).
 
 ``` r
 
@@ -293,3 +305,40 @@ are unaffected and work correctly with truncation.
   average?); the `2` variants estimate it (by how much do they
   disagree?). All support truncation through
   [`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html).
+  The difference of two independent Poisson counts is
+  Skellam-distributed ([Skellam 1946](#ref-skellam1946)); for the
+  Bayesian treatment of count differences generally, see Karlis and
+  Ntzoufras ([2006](#ref-karlis2006)).
+
+## References
+
+Bürkner, Paul-Christian. 2017. “brms: An R Package for Bayesian
+Multilevel Models Using Stan.” *Journal of Statistical Software* 80 (1):
+1–28. <https://doi.org/10.18637/jss.v080.i01>.
+
+Bürkner, Paul-Christian. 2018. “Advanced Bayesian Multilevel Modeling
+with the R Package brms.” *The R Journal* 10 (1): 395–411.
+<https://doi.org/10.32614/RJ-2018-017>.
+
+Karlis, Dimitris, and Ioannis Ntzoufras. 2003. “Analysis of Sports Data
+by Using Bivariate Poisson Models.” *Journal of the Royal Statistical
+Society: Series D (The Statistician)* 52 (3): 381–93.
+<https://doi.org/10.1111/1467-9884.00366>.
+
+Karlis, Dimitris, and Ioannis Ntzoufras. 2006. “Bayesian Analysis of the
+Differences of Count Data.” *Statistics in Medicine* 25 (11): 1885–905.
+<https://doi.org/10.1002/sim.2382>.
+
+Skellam, J. G. 1946. “The Frequency Distribution of the Difference
+Between Two Poisson Variates Belonging to Different Populations.”
+*Journal of the Royal Statistical Society* 109 (3): 296.
+<https://doi.org/10.1111/j.2397-2335.1946.tb04670.x>.
+
+Vehtari, Aki, Andrew Gelman, and Jonah Gabry. 2017. “Practical Bayesian
+Model Evaluation Using Leave-One-Out Cross-Validation and WAIC.”
+*Statistics and Computing* 27 (5): 1413–32.
+<https://doi.org/10.1007/s11222-016-9696-4>.
+
+Vehtari, Aki, Daniel Simpson, Andrew Gelman, Yuling Yao, and Jonah
+Gabry. 2024. “Pareto Smoothed Importance Sampling.” *Journal of Machine
+Learning Research* 25 (72): 1–58.

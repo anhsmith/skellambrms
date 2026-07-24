@@ -77,13 +77,16 @@ predict and score. The other joint family (<code><a href="../reference/bipois.ht
 identically with two fewer dpars; the difference families
 (<code><a href="../reference/skellam1.html">skellam1()</a></code>, <code><a href="../reference/dnorm2.html">dnorm2()</a></code>, and so on) are shown in
 the README.</p>
+<p>Everything here is a brms custom family <span class="citation">(<a href="#ref-burkner2017">Bürkner 2017</a>)</span>, so the fitting,
+prediction and model-comparison interfaces are brms’s own. The
+non-linear formula syntax used further down is documented in <span class="citation">Bürkner (<a href="#ref-burkner2018">2018</a>)</span>.</p>
 <div class="section level2">
 <h2 id="the-generative-model">The generative model<a class="anchor" aria-label="anchor" href="#the-generative-model"></a>
 </h2>
 <p><code><a href="../reference/binegbin.html">binegbin()</a></code> builds a bivariate count pair by
-<strong>trivariate reduction</strong>. Three independent
-Negative-Binomial counts are drawn, and the two observed counts share
-one of them:</p>
+<strong>trivariate reduction</strong> <span class="citation">(<a href="#ref-karlis2003">Karlis and Ntzoufras 2003</a>)</span>. Three
+independent Negative-Binomial counts are drawn, and the two observed
+counts share one of them:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>N</mi><mtext mathvariant="normal">shared</mtext></msub></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>∼</mo><mrow><mi mathvariant="normal">N</mi><mi mathvariant="normal">B</mi><mn mathvariant="normal">2</mn></mrow><mo stretchy="false" form="prefix">(</mo><mi>μ</mi><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>ϕ</mi><mi>s</mi></msub><mo stretchy="false" form="postfix">)</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>N</mi><mn>10</mn></msub></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>∼</mo><mrow><mi mathvariant="normal">N</mi><mi mathvariant="normal">B</mi><mn mathvariant="normal">2</mn></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>λ</mi><mtext mathvariant="normal">em</mtext></msub><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>ϕ</mi><mi>x</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="2.0em"></mspace><msub><mi>N</mi><mn>01</mn></msub><mo>∼</mo><mrow><mi mathvariant="normal">N</mi><mi mathvariant="normal">B</mi><mn mathvariant="normal">2</mn></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>λ</mi><mtext mathvariant="normal">lb</mtext></msub><mo>,</mo><mspace width="0.222em"></mspace><msub><mi>ϕ</mi><mi>x</mi></msub><mo stretchy="false" form="postfix">)</mo></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right; padding-right: 0"><msub><mi>y</mi><mtext mathvariant="normal">em</mtext></msub></mtd><mtd columnalign="left" style="text-align: left; padding-left: 0"><mo>=</mo><msub><mi>N</mi><mtext mathvariant="normal">shared</mtext></msub><mo>+</mo><msub><mi>N</mi><mn>10</mn></msub><mspace width="2.0em"></mspace><msub><mi>y</mi><mtext mathvariant="normal">lb</mtext></msub><mo>=</mo><msub><mi>N</mi><mtext mathvariant="normal">shared</mtext></msub><mo>+</mo><msub><mi>N</mi><mn>01</mn></msub></mtd></mtr></mtable><annotation encoding="application/x-tex">
 \begin{aligned}
 N_{\text{shared}} &amp;\sim \mathrm{NB2}(\mu,\ \phi_s) \\
@@ -140,6 +143,8 @@ shared by both excesses</td>
 to the shared component’s <em>rate</em> — it is not the mean of either
 response, and not the mean of their difference.
 <code>E[y_em] = mu + lambdaem</code>.</p>
+<p>All five use a log link, the conventional log-linear rate
+parameterisation for this construction <span class="citation">(<a href="#ref-karlis2003">Karlis and Ntzoufras 2003</a>)</span>.</p>
 </div>
 <div class="section level2">
 <h2 id="simulate-from-known-parameters">Simulate from known parameters<a class="anchor" aria-label="anchor" href="#simulate-from-known-parameters"></a>
@@ -354,7 +359,11 @@ conditional, not an approximation.</p>
 <p><code><a href="https://mc-stan.org/rstantools/reference/log_lik.html" class="external-link">log_lik()</a></code> gives the pointwise log-likelihood of the
 <em>joint</em> pair, evaluated by an independent R implementation of the
 same marginalisation sum that the Stan function computes. It feeds
-<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> and <code><a href="https://mc-stan.org/loo/reference/waic.html" class="external-link">waic()</a></code> in the usual way.</p>
+<code><a href="https://mc-stan.org/loo/reference/loo.html" class="external-link">loo()</a></code> and <code><a href="https://mc-stan.org/loo/reference/waic.html" class="external-link">waic()</a></code> in the usual way <span class="citation">(<a href="#ref-vehtari2017">Vehtari et al.
+2017</a>)</span>. The Pareto
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+diagnostic reported alongside the estimate flags observations whose
+importance weights are unreliable <span class="citation">(<a href="#ref-vehtari2024">Vehtari et al. 2024</a>)</span>.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ll</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://mc-stan.org/rstantools/reference/log_lik.html" class="external-link">log_lik</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">ll</span><span class="op">)</span></span>
@@ -410,8 +419,55 @@ integrated-out marginal instead of dropping them.</li>
 <code>d = y_em - y_lb</code> directly. The <code>1</code> variants fix
 the location at zero (does the pair agree on average?); the
 <code>2</code> variants estimate it (by how much do they disagree?). All
-support truncation through <code><a href="https://paulbuerkner.com/brms/reference/addition-terms.html" class="external-link">resp_trunc()</a></code>.</li>
+support truncation through <code><a href="https://paulbuerkner.com/brms/reference/addition-terms.html" class="external-link">resp_trunc()</a></code>. The difference of
+two independent Poisson counts is Skellam-distributed <span class="citation">(<a href="#ref-skellam1946">Skellam 1946</a>)</span>;
+for the Bayesian treatment of count differences generally, see <span class="citation">Karlis and Ntzoufras (<a href="#ref-karlis2006">2006</a>)</span>.</li>
 </ul>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-burkner2017" class="csl-entry">
+Bürkner, Paul-Christian. 2017. <span>“<span class="nocase">brms</span>:
+An <span>R</span> Package for <span>Bayesian</span> Multilevel Models
+Using <span>Stan</span>.”</span> <em>Journal of Statistical
+Software</em> 80 (1): 1–28. <a href="https://doi.org/10.18637/jss.v080.i01" class="external-link">https://doi.org/10.18637/jss.v080.i01</a>.
+</div>
+<div id="ref-burkner2018" class="csl-entry">
+Bürkner, Paul-Christian. 2018. <span>“Advanced <span>Bayesian</span>
+Multilevel Modeling with the <span>R</span> Package <span class="nocase">brms</span>.”</span> <em>The R Journal</em> 10 (1):
+395–411. <a href="https://doi.org/10.32614/RJ-2018-017" class="external-link">https://doi.org/10.32614/RJ-2018-017</a>.
+</div>
+<div id="ref-karlis2003" class="csl-entry">
+Karlis, Dimitris, and Ioannis Ntzoufras. 2003. <span>“Analysis of Sports
+Data by Using Bivariate <span>Poisson</span> Models.”</span> <em>Journal
+of the Royal Statistical Society: Series D (The Statistician)</em> 52
+(3): 381–93. <a href="https://doi.org/10.1111/1467-9884.00366" class="external-link">https://doi.org/10.1111/1467-9884.00366</a>.
+</div>
+<div id="ref-karlis2006" class="csl-entry">
+Karlis, Dimitris, and Ioannis Ntzoufras. 2006. <span>“Bayesian Analysis
+of the Differences of Count Data.”</span> <em>Statistics in
+Medicine</em> 25 (11): 1885–905. <a href="https://doi.org/10.1002/sim.2382" class="external-link">https://doi.org/10.1002/sim.2382</a>.
+</div>
+<div id="ref-skellam1946" class="csl-entry">
+Skellam, J. G. 1946. <span>“The Frequency Distribution of the Difference
+Between Two <span>Poisson</span> Variates Belonging to Different
+Populations.”</span> <em>Journal of the Royal Statistical Society</em>
+109 (3): 296. <a href="https://doi.org/10.1111/j.2397-2335.1946.tb04670.x" class="external-link">https://doi.org/10.1111/j.2397-2335.1946.tb04670.x</a>.
+</div>
+<div id="ref-vehtari2017" class="csl-entry">
+Vehtari, Aki, Andrew Gelman, and Jonah Gabry. 2017. <span>“Practical
+<span>Bayesian</span> Model Evaluation Using Leave-One-Out
+Cross-Validation and <span>WAIC</span>.”</span> <em>Statistics and
+Computing</em> 27 (5): 1413–32. <a href="https://doi.org/10.1007/s11222-016-9696-4" class="external-link">https://doi.org/10.1007/s11222-016-9696-4</a>.
+</div>
+<div id="ref-vehtari2024" class="csl-entry">
+Vehtari, Aki, Daniel Simpson, Andrew Gelman, Yuling Yao, and Jonah
+Gabry. 2024. <span>“Pareto Smoothed Importance Sampling.”</span>
+<em>Journal of Machine Learning Research</em> 25 (72): 1–58.
+</div>
+</div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
