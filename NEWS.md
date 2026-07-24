@@ -1,3 +1,29 @@
+# pairedcountbrms 0.6.0
+
+* **Renamed: `skellambrms` is now `pairedcountbrms`.** The old name named one
+  family; the package's subject is the comparison of two paired count sources,
+  by two complementary routes — the difference families (`skellam1`/`skellam2`,
+  `dnorm1`/`dnorm2`, `dlaplace1`/`dlaplace2`) and the joint bivariate families
+  (`bipois`, `binegbin`, `binegbin_joint`). Skellam is one member of that set,
+  and no longer the most used one.
+
+  **No family names change**, so no fitted model needs refitting: `binegbin`,
+  `binegbin_joint`, `bipois`, `skellam1`/`skellam2`, `dnorm1`/`dnorm2` and
+  `dlaplace1`/`dlaplace2` all keep their names, and brms continues to resolve
+  each fit's `log_lik_*` / `posterior_predict_*` / `posterior_epred_*` methods
+  off the attached search path exactly as before. The only change a user needs
+  to make is `library(skellambrms)` → `library(pairedcountbrms)` (and any
+  `skellambrms::` prefix).
+
+  The GitHub repository moves to `anhsmith/pairedcountbrms`. GitHub serves a
+  permanent redirect from the old path for both web and git, so existing
+  clones and `pak::pak("anhsmith/skellambrms")` calls keep working.
+
+* New vignette, `Getting started with pairedcountbrms`: simulates paired counts
+  from known `binegbin` parameters, fits them with `brm()` plus
+  `binegbin_stanvars()`, checks that the five dpars recover the truth, and
+  exercises `posterior_predict()` and `log_lik()`.
+
 # skellambrms 0.5.0
 
 * **Breaking (link change):** `binegbin()` and `binegbin_joint()` now log-link

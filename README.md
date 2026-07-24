@@ -1,4 +1,4 @@
-# skellambrms
+# pairedcountbrms
 
 Custom [brms](https://paul-buerkner.github.io/brms/) families for modelling a
 **pair of counts** from two sources that are meant to measure the same thing —
@@ -127,7 +127,7 @@ Every family follows the same pattern: pass `family = <family>()` and
 
 ```r
 library(brms)
-library(skellambrms)
+library(pairedcountbrms)
 
 # skellam1(): mean fixed at 0 -- do the two sources agree on average?
 fit1 <- brm(
@@ -294,7 +294,7 @@ identifiability caveat this implies.
 
 ```r
 library(brms)
-library(skellambrms)
+library(pairedcountbrms)
 
 # bipois(): joint bivariate Poisson (non-overdispersed margins)
 fit_bp <- brm(
@@ -373,12 +373,25 @@ underscores in dpar names, so `skellam2()`'s excess-spread parameter is spelled
 
 ```r
 # install.packages("pak")
-pak::pak("anhsmith/skellambrms")
+pak::pak("anhsmith/pairedcountbrms")
 ```
 
 Stan and a C++ toolchain are required. On Windows, install
 [Rtools45](https://cran.r-project.org/bin/windows/Rtools/rtools45/rtools.html).
 Works with either rstan or cmdstanr as the brms backend.
+
+Formerly released as `skellambrms` (versions 0.1.0–0.5.0). No family names
+changed in the rename, so existing fits still resolve their post-processing
+methods and nothing needs refitting — only `library(skellambrms)` becomes
+`library(pairedcountbrms)`.
+
+Documentation, including a worked getting-started vignette that simulates,
+fits, and recovers `binegbin` parameters end to end, is at
+<https://anhsmith.github.io/pairedcountbrms/>. Locally:
+
+```r
+vignette("pairedcountbrms")
+```
 
 ## Limitations
 

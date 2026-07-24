@@ -1,3 +1,3 @@
 library(testthat)
-library(skellambrms)
-test_check("skellambrms")
+library(pairedcountbrms)
+test_check("pairedcountbrms")

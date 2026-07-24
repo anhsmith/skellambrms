@@ -1,0 +1,262 @@
+---
+title: "Getting started with pairedcountbrms"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with pairedcountbrms}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>"
+)
+
+# The fitting chunks need a working Stan toolchain. Where there isn't one --
+# R CMD check on a machine without cmdstanr/rstan, say -- the code is shown
+# but not run, rather than erroring the build.
+has_stan <- requireNamespace("cmdstanr", quietly = TRUE) ||
+  requireNamespace("rstan", quietly = TRUE)
+backend <- if (requireNamespace("cmdstanr", quietly = TRUE)) "cmdstanr" else "rstan"
+```
+
+```{r}
+#| label: libraries
+#| message: false
+library(brms)
+library(pairedcountbrms)
+```
+
+This vignette walks the package's R API end to end on one family, `binegbin()`:
+simulate a matched pair of counts from known parameters, fit them, check that
+the posterior finds the truth, and then predict and score. The other joint
+family (`bipois()`) works identically with two fewer dpars; the difference
+families (`skellam1()`, `dnorm2()`, and so on) are shown in the README.
+
+## The generative model
+
+`binegbin()` builds a bivariate count pair by **trivariate reduction**. Three
+independent Negative-Binomial counts are drawn, and the two observed counts
+share one of them:
+
+$$
+\begin{aligned}
+N_{\text{shared}} &\sim \mathrm{NB2}(\mu,\ \phi_s) \\
+N_{10} &\sim \mathrm{NB2}(\lambda_{\text{em}},\ \phi_x) \qquad
+N_{01} \sim \mathrm{NB2}(\lambda_{\text{lb}},\ \phi_x) \\[4pt]
+y_{\text{em}} &= N_{\text{shared}} + N_{10} \qquad
+y_{\text{lb}} = N_{\text{shared}} + N_{01}
+\end{aligned}
+$$
+
+The shared component is what both sources saw; the two excesses are what each
+saw alone. $N_{\text{shared}}$ is never observed — it is marginalised out
+analytically in the likelihood — but it is what induces the correlation between
+the pair.
+
+`NB2(m, phi)` is Stan's `neg_binomial_2` and R's `dnbinom(size = phi, mu = m)`:
+mean `m`, variance `m + m^2/phi`. Larger `phi` means *less* overdispersion.
+
+Five dpars, all with a log link:
+
+| dpar | role |
+|---|---|
+| `mu` | rate of the shared component |
+| `lambdaem` | rate of the first source's excess |
+| `lambdalb` | rate of the second source's excess |
+| `shapes` | dispersion $\phi_s$ of the shared component |
+| `shapex` | dispersion $\phi_x$, shared by both excesses |
+
+`mu` is brms's mandatory first-dpar name. Here it is bound to the shared
+component's *rate* — it is not the mean of either response, and not the mean of
+their difference. `E[y_em] = mu + lambdaem`.
+
+## Simulate from known parameters
+
+```{r}
+#| label: simulate
+set.seed(20260724)
+
+n <- 400
+truth <- list(
+  mu       = 8,
+  lambdaem = 3,
+  lambdalb = 2,
+  shapes   = 4,
+  shapex   = 6
+)
+
+n_shared <- rnbinom(n, size = truth$shapes, mu = truth$mu)
+n10      <- rnbinom(n, size = truth$shapex, mu = truth$lambdaem)
+n01      <- rnbinom(n, size = truth$shapex, mu = truth$lambdalb)
+
+dat <- data.frame(
+  y_em = n_shared + n10,
+  y_lb = n_shared + n01
+)
+
+str(dat)
+cor(dat$y_em, dat$y_lb)
+```
+
+The correlation is positive and substantial because both counts carry the same
+`n_shared`. That shared term is exactly what a model of the difference alone
+throws away.
+
+## Fit
+
+Two things are specific to this package and easy to miss.
+
+**The second count travels via `vint()`.** `brms::custom_family()` declares a
+single response column, so only `y_em` can be the response. `y_lb` is passed
+alongside as supplementary integer data, and the family's Stan signature reads
+it from there.
+
+**`stanvars` is not optional.** `binegbin_stanvars()` injects the
+`binegbin_lpmf` Stan function into the model's `functions` block. Without it
+the generated model will not compile.
+
+```{r}
+#| label: fit
+#| eval: !expr has_stan
+#| results: hide
+#| message: false
+fit <- brm(
+  bf(
+    y_em | vint(y_lb) ~ 1,
+    lambdaem          ~ 1,
+    lambdalb          ~ 1,
+    shapes            ~ 1,
+    shapex            ~ 1
+  ),
+  family   = binegbin(),
+  stanvars = binegbin_stanvars(),
+  data     = dat,
+  prior    = c(
+    prior(normal(0, 3), class = "Intercept"),
+    prior(normal(0, 3), class = "Intercept", dpar = "lambdaem"),
+    prior(normal(0, 3), class = "Intercept", dpar = "lambdalb"),
+    prior(normal(1, 2), class = "Intercept", dpar = "shapes"),
+    prior(normal(1, 2), class = "Intercept", dpar = "shapex")
+  ),
+  chains  = 2,
+  iter    = 1500,
+  refresh = 0,
+  backend = backend,
+  seed    = 1
+)
+```
+
+The priors are deliberately weak and not centred on the truth — `normal(0, 3)`
+on a log rate spans roughly `[0.003, 400]`. With 400 observations the data does
+the work.
+
+## Did it recover the truth?
+
+All five dpars are log-linked, so each posterior intercept exponentiates back
+onto the natural scale.
+
+```{r}
+#| label: recovery
+#| eval: !expr has_stan
+draws <- as_draws_df(fit)
+
+pars <- c(
+  mu       = "b_Intercept",
+  lambdaem = "b_lambdaem_Intercept",
+  lambdalb = "b_lambdalb_Intercept",
+  shapes   = "b_shapes_Intercept",
+  shapex   = "b_shapex_Intercept"
+)
+
+recovery <- do.call(rbind, lapply(names(pars), function(p) {
+  x <- exp(draws[[pars[[p]]]])
+  data.frame(
+    dpar  = p,
+    truth = truth[[p]],
+    est   = median(x),
+    lower = unname(quantile(x, 0.025)),
+    upper = unname(quantile(x, 0.975))
+  )
+}))
+recovery$covered <- with(recovery, truth >= lower & truth <= upper)
+
+knitr::kable(recovery, digits = 2)
+```
+
+The three rates should land tightly on their true values. The two dispersions
+are estimated from an aggregate mean–variance mismatch rather than from any
+directly observed quantity, so their intervals are wider — `shapex` especially,
+since it is identified only through the part of the pair's spread that the
+shared component cannot explain. Wide but covering is the expected result here,
+not a warning sign.
+
+## Predict and score
+
+`posterior_predict()` draws new `y_em` **conditional on each row's observed
+`y_lb`**. It samples the discrete conditional distribution of
+$N_{\text{shared}}$ given `y_lb`, then adds a fresh excess draw — the exact
+conditional, not an approximation.
+
+```{r}
+#| label: predict
+#| eval: !expr has_stan
+yrep <- posterior_predict(fit, ndraws = 200)
+dim(yrep)
+
+data.frame(
+  quantity = c("mean", "sd", "max"),
+  observed = c(mean(dat$y_em), sd(dat$y_em), max(dat$y_em)),
+  predicted = c(mean(yrep), mean(apply(yrep, 1, sd)), mean(apply(yrep, 1, max)))
+) |>
+  knitr::kable(digits = 2)
+```
+
+`log_lik()` gives the pointwise log-likelihood of the *joint* pair, evaluated by
+an independent R implementation of the same marginalisation sum that the Stan
+function computes. It feeds `loo()` and `waic()` in the usual way.
+
+```{r}
+#| label: loglik
+#| eval: !expr has_stan
+ll <- log_lik(fit)
+dim(ll)
+
+loo(fit)
+```
+
+## One limitation to know about
+
+`posterior_epred()` — and its aliases `fitted()` and `conditional_effects()` —
+**errors on any truncated custom-family fit** in brms 2.23.0. The dispatcher
+checks for truncation before it checks the family type, and the truncated branch
+has no fallback to `posterior_epred_custom()`. This is a brms limitation, not a
+bug in this package.
+
+On a truncated fit, call the family's method directly:
+
+```{r}
+#| label: epred-workaround
+#| eval: false
+posterior_epred_binegbin(prepare_predictions(fit))
+```
+
+`posterior_predict()` and `log_lik()` are unaffected and work correctly with
+truncation.
+
+## Where to go next
+
+- `bipois()` — the non-overdispersed Poisson sibling. Same construction, three
+  dpars instead of five. Use it when the margins are not overdispersed; compare
+  the two with `loo()`.
+- `binegbin_joint()` — censoring-aware, for data where one of the two counts is
+  missing on some rows. It admits those rows via the integrated-out marginal
+  instead of dropping them.
+- `skellam1()` / `skellam2()`, `dnorm1()` / `dnorm2()`, `dlaplace1()` /
+  `dlaplace2()` — the difference families, which model `d = y_em - y_lb`
+  directly. The `1` variants fix the location at zero (does the pair agree on
+  average?); the `2` variants estimate it (by how much do they disagree?). All
+  support truncation through `resp_trunc()`.

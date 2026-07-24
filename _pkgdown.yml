@@ -1,0 +1,44 @@
+url: https://anhsmith.github.io/pairedcountbrms/
+
+template:
+  bootstrap: 5
+
+reference:
+- title: Joint bivariate-count families
+  desc: >
+    Model the matched pair jointly via trivariate reduction, capturing its
+    correlation, marginal overdispersion, and difference together rather than
+    the difference alone.
+  contents:
+  - bipois
+  - binegbin
+  - binegbin_joint
+
+- title: Difference families
+  desc: >
+    Model the difference `d = y_em - y_lb` directly. The `1` variants fix the
+    location at zero (do the two sources agree on average?); the `2` variants
+    estimate it (by how much do they disagree?).
+  contents:
+  - skellam1
+  - skellam2
+  - dnorm1
+  - dnorm2
+  - dlaplace1
+  - dlaplace2
+
+- title: Truncation support
+  desc: >
+    Stan `lccdf` functions injected as stanvars so the difference families
+    normalise correctly under `resp_trunc()`.
+  contents:
+  - skellam1_lccdf_stanvars
+  - skellam2_lccdf_stanvars
+  - dnorm1_lccdf_stanvars
+  - dnorm2_lccdf_stanvars
+  - dlaplace1_lccdf_stanvars
+  - dlaplace2_lccdf_stanvars
+
+- title: Parameterisation helpers
+  contents:
+  - skellam2_dpars
