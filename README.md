@@ -85,10 +85,10 @@ $\theta_1-\theta_2$ and variance $\theta_1+\theta_2$. The package samples on
 $(\mu,\sigma)$ rather than $(\theta_1,\theta_2)$:
 
 - **`skellam1()`** fixes $\mu=0$, so $\theta_1=\theta_2=\sigma^2/2$ and
-  $\operatorname{Var}(D)=\sigma^2$. One parameter, $\sigma$.
+  $\mathrm{Var}(D)=\sigma^2$. One parameter, $\sigma$.
 - **`skellam2()`** frees the mean via $\theta_1=(\sigma^2+\mu)/2$,
   $\theta_2=(\sigma^2-\mu)/2$. Because $\theta_1,\theta_2\ge 0$ requires
-  $\sigma^2\ge\lvert\mu\rvert$ (variance $\ge$ $\lvert$mean$\rvert$ — a sum of
+  $\sigma^2\ge\lvert\mu\rvert$ (variance $\ge \lvert\text{mean}\rvert$ — a sum of
   two non-negative rates can never be smaller than the size of their
   difference), the family sets $\sigma^2 = \lvert\mu\rvert +
   \sigma_{\text{excess}}^2$ with $\sigma_{\text{excess}}\ge 0$ free. This makes
@@ -105,9 +105,9 @@ $$
 P(Z = z) = F\!\left(z + \tfrac12\right) - F\!\left(z - \tfrac12\right),
 $$
 
-with $F$ the Laplace$(\mu, b)$ or Normal$(\mu, \sigma)$ CDF. The scale is put
+with $F$ the $\mathrm{Laplace}(\mu, b)$ or $\mathrm{Normal}(\mu, \sigma)$ CDF. The scale is put
 on the same SD footing as the Skellam families: for the Laplace,
-$\operatorname{Var}=2b^2$, so $b=\sigma/\sqrt2$; for the normal, $\sigma$ is
+$\mathrm{Var}=2b^2$, so $b=\sigma/\sqrt2$; for the normal, $\sigma$ is
 already the SD. The `*1` versions fix $\mu=0$; the `*2` versions free it.
 
 Unlike `skellam2()`, `dlaplace2()` and `dnorm2()` impose **no** coupling
@@ -115,7 +115,7 @@ between $\mu$ and $\sigma$ — they are free, independent parameters. That
 contrast is deliberate and is the reason to have all three: fitting
 `skellam2()` (bias and spread structurally coupled) against `dnorm2()` /
 `dlaplace2()` (uncoupled) tests whether your data's disagreement obeys the
-Skellam variance-$\ge$-$\lvert$mean$\rvert$ relationship or not. The discrete
+Skellam $\sigma^2 \ge \lvert\text{mean}\rvert$ relationship or not. The discrete
 normal is the light-tailed reference; the discrete Laplace the heavy-tailed
 one.
 
@@ -213,25 +213,26 @@ $$
 where $f_{\text{s}}, f_{10}, f_{01}$ are the pmfs of the three latent counts.
 Two consequences follow directly and are worth internalising:
 
-- **The margins.** $\operatorname{E}[y_{\text{em}}] = \text{mu} +
+- **The margins.** $\mathrm{E}[y_{\text{em}}] = \text{mu} +
   \lambda_{\text{em}}$ and likewise for $y_{\text{lb}}$;
-  $\operatorname{Cov}(y_{\text{em}}, y_{\text{lb}}) =
-  \operatorname{Var}(N_{\text{shared}})$, so the correlation is
-  $\operatorname{Var}(N_{\text{shared}}) / \sqrt{\operatorname{Var}(y_{\text{em}})\operatorname{Var}(y_{\text{lb}})}$.
+  $\mathrm{Cov}(y_{\text{em}}, y_{\text{lb}}) =
+  \mathrm{Var}(N_{\text{shared}})$, so the correlation is
+  $\mathrm{Var}(N_{\text{shared}}) / \sqrt{\mathrm{Var}(y_{\text{em}})\mathrm{Var}(y_{\text{lb}})}$.
 - **The difference.** $d = y_{\text{em}} - y_{\text{lb}} = N_{10} - N_{01}$ —
   the shared count *cancels*. So the difference depends only on the two private
   components, exactly the quantity a difference family models. For the Poisson
-  case this difference is precisely Skellam$(\lambda_{\text{em}},
-  \lambda_{\text{lb}})$, tying the two suites together.
+  case this difference is precisely
+  $\mathrm{Skellam}(\lambda_{\text{em}}, \lambda_{\text{lb}})$, tying the two
+  suites together.
 
 ### `bipois` vs `binegbin`: overdispersion
 
 | Family | Latent law | Dispersion | Var of each latent | Use when |
 |---|---|---|---|---|
-| `bipois()` | Poisson | none | $\operatorname{Var}=\text{mean}$ | margins are **not** overdispersed |
+| `bipois()` | Poisson | none | $\mathrm{Var}=\text{mean}$ | margins are **not** overdispersed |
 | `binegbin()` | negative-binomial | scalar `shapes` (shared), `shapex` (private) | $m + m^2/\phi$ | margins **are** overdispersed (the usual case) |
 
-With Poisson latents, each component has $\operatorname{Var}=\text{mean}$, so
+With Poisson latents, each component has $\mathrm{Var}=\text{mean}$, so
 `bipois` cannot represent overdispersed margins and underfits the marginal
 (and difference) variance of real count data. `binegbin` replaces each latent
 with a negative-binomial, $N \sim \text{NB2}(m, \phi)$ — Stan's
@@ -241,14 +242,14 @@ $m + m^2/\phi$. It carries the extra spread in two **scalar** dispersion dpars:
 shared across both private counts. The moments become
 
 $$
-\operatorname{Var}(y_{\text{em}}) = \Big(\text{mu}+\tfrac{\text{mu}^2}{\phi_{\text{s}}}\Big)
+\mathrm{Var}(y_{\text{em}}) = \Big(\text{mu}+\tfrac{\text{mu}^2}{\phi_{\text{s}}}\Big)
   + \Big(\lambda_{\text{em}}+\tfrac{\lambda_{\text{em}}^2}{\phi_{\text{x}}}\Big),
 \qquad
-\operatorname{Cov}(y_{\text{em}},y_{\text{lb}}) = \text{mu}+\tfrac{\text{mu}^2}{\phi_{\text{s}}},
+\mathrm{Cov}(y_{\text{em}},y_{\text{lb}}) = \text{mu}+\tfrac{\text{mu}^2}{\phi_{\text{s}}},
 $$
 
 and, with $\lambda_{\text{em}}=\lambda_{\text{lb}}=\lambda$,
-$\operatorname{Var}(d) = 2\big(\lambda + \lambda^2/\phi_{\text{x}}\big)$. As
+$\mathrm{Var}(d) = 2\big(\lambda + \lambda^2/\phi_{\text{x}}\big)$. As
 $\phi_{\text{s}},\phi_{\text{x}}\to\infty$ the negative-binomials collapse to
 Poissons and `binegbin` $\to$ `bipois`.
 
@@ -257,7 +258,7 @@ per-observation random effect (OLRE) on the private components — was tried and
 rejected. With one pair per unit but three latent deviates per unit, the excess
 deviates act as residual absorbers: their population SD collapses toward the
 prior, and drawing fresh deviates fails to regenerate the observed spread
-(recovered excess SD $0.37$ vs true $0.85$; fresh-draw $\operatorname{Var}(d)$
+(recovered excess SD $0.37$ vs true $0.85$; fresh-draw $\mathrm{Var}(d)$
 $2.9$ vs true $19.2$ in the motivating case). A *conditional*
 posterior-predictive check hides this entirely; only a **marginal**
 (fresh-draw) check exposes it. Scalar `shapes`/`shapex` are identified from the
@@ -326,7 +327,7 @@ fit_cj <- brm(
 
 The `nlf(lambdaem ~ lamx)` / `nlf(lambdalb ~ lamx)` idiom ties the two private
 rates to one value — a "no systematic bias" assumption,
-$\operatorname{E}[y_{\text{em}}]=\operatorname{E}[y_{\text{lb}}]$. Splitting
+$\mathrm{E}[y_{\text{em}}]=\mathrm{E}[y_{\text{lb}}]$. Splitting
 them as `lamx + methd` / `lamx - methd` introduces a directional bias parameter
 `methd` (half the log ratio of the two excess rates); giving the two rates
 separate predictors (`nlf(lambdaem ~ lem)`, `nlf(lambdalb ~ llb)`, `lem ~ 1`,
@@ -418,7 +419,7 @@ for truncated fits of every family.
 them.
 
 **`posterior_epred` for the joint families.** `bipois` returns the exact
-$\operatorname{E}[y_{\text{em}}\mid y_{\text{lb}}]$; `binegbin`'s is a point
+$\mathrm{E}[y_{\text{em}}\mid y_{\text{lb}}]$; `binegbin`'s is a point
 *approximation* (no closed-form conditional mean for a negative-binomial sum —
 use `posterior_predict()` for exact conditional simulation); `binegbin_joint`
 defines **no** `posterior_epred` at all, so use `posterior_predict()` for it.
