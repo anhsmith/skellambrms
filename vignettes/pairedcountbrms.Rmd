@@ -1,6 +1,8 @@
 ---
 title: "Getting started with pairedcountbrms"
 output: rmarkdown::html_vignette
+bibliography: references.bib
+link-citations: true
 vignette: >
   %\VignetteIndexEntry{Getting started with pairedcountbrms}
   %\VignetteEngine{knitr::rmarkdown}
@@ -22,11 +24,15 @@ the posterior finds the truth, and then predict and score. The other joint
 family (`bipois()`) works identically with two fewer dpars; the difference
 families (`skellam1()`, `dnorm2()`, and so on) are shown in the README.
 
+Everything here is a brms custom family [@burkner2017], so the fitting,
+prediction and model-comparison interfaces are brms's own. The non-linear
+formula syntax used further down is documented in @burkner2018.
+
 ## The generative model
 
-`binegbin()` builds a bivariate count pair by **trivariate reduction**. Three
-independent Negative-Binomial counts are drawn, and the two observed counts
-share one of them:
+`binegbin()` builds a bivariate count pair by **trivariate reduction**
+[@karlis2003]. Three independent Negative-Binomial counts are drawn, and the two
+observed counts share one of them:
 
 $$
 \begin{aligned}
@@ -59,6 +65,9 @@ Five dpars, all with a log link:
 `mu` is brms's mandatory first-dpar name. Here it is bound to the shared
 component's *rate* — it is not the mean of either response, and not the mean of
 their difference. `E[y_em] = mu + lambdaem`.
+
+All five use a log link, the conventional log-linear rate parameterisation for
+this construction [@karlis2003].
 
 ## Simulate from known parameters
 
@@ -225,7 +234,9 @@ data.frame(
 
 `log_lik()` gives the pointwise log-likelihood of the *joint* pair, evaluated by
 an independent R implementation of the same marginalisation sum that the Stan
-function computes. It feeds `loo()` and `waic()` in the usual way.
+function computes. It feeds `loo()` and `waic()` in the usual way
+[@vehtari2017]. The Pareto $k$ diagnostic reported alongside the estimate flags
+observations whose importance weights are unreliable [@vehtari2024].
 
 
 ``` r
@@ -279,4 +290,11 @@ truncation.
   `dlaplace2()` — the difference families, which model `d = y_em - y_lb`
   directly. The `1` variants fix the location at zero (does the pair agree on
   average?); the `2` variants estimate it (by how much do they disagree?). All
-  support truncation through `resp_trunc()`.
+  support truncation through `resp_trunc()`. The difference of two independent
+  Poisson counts is Skellam-distributed [@skellam1946]; for the Bayesian
+  treatment of count differences generally, see @karlis2006.
+
+## References
+
+::: {#refs}
+:::
