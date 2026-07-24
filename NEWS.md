@@ -19,6 +19,16 @@
   permanent redirect from the old path for both web and git, so existing
   clones and `pak::pak("anhsmith/skellambrms")` calls keep working.
 
+* New coordinate helpers, `binegbin_mfd_to_dpars()` and
+  `binegbin_dpars_to_mfd()`, converting between the rate dpars the joint
+  families take (`mu`, `lambdaem`, `lambdalb`, plus `shapes`/`shapex`) and the
+  interpretable `(M, f, delta)` coordinates — overall level, congruence, and
+  method bias — along with the SD-scale dispersions `kappas`/`kappax`. Pure
+  transforms; they fit nothing, and fitting in these coordinates still goes
+  through `nlf()` (documented on `binegbin_mfd_to_dpars()`). The inverse
+  reports `delta` as `NA` at `f = 1`, where there is no excess to be biased and
+  the bias is genuinely unidentified, rather than silently returning `0`.
+
 * New vignette, `Getting started with pairedcountbrms`: simulates paired counts
   from known `binegbin` parameters, fits them with `brm()` plus
   `binegbin_stanvars()`, checks that the five dpars recover the truth, and

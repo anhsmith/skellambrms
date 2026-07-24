@@ -40,5 +40,10 @@ reference:
   - dlaplace2_lccdf_stanvars
 
 - title: Parameterisation helpers
+  desc: >
+    Convert between the dpars a family takes and more interpretable
+    coordinates.
   contents:
   - skellam2_dpars
+  - binegbin_mfd_to_dpars
+  - binegbin_dpars_to_mfd

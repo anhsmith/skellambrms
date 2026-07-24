@@ -29,16 +29,26 @@ jobs:
       - uses: r-lib/actions/setup-r@v2
         with:
           use-public-rspm: true
+          # cmdstanr is a Suggests but is NOT on CRAN -- without this, pak
+          # cannot resolve it and dependency solving fails outright.
+          extra-repositories: https://stan-dev.r-universe.dev
 
+      # `dependencies: '"hard"'` deliberately skips Suggests. Nothing built
+      # here needs a Stan backend: the vignette is precompiled from
+      # pairedcountbrms.Rmd.orig (see vignettes/precompile.R) so its results
+      # are already baked in, and the articles are pure R. Installing cmdstanr
+      # would be actively harmful -- the package would be present but the
+      # cmdstan binary would not, so anything that tried to sample would fail.
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::pkgdown, local::.
+          dependencies: '"hard"'
+          extra-packages: |
+            any::pkgdown
+            any::knitr
+            any::rmarkdown
+            local::.
           needs: website
 
-      # The vignette fits a real brms model, which needs a Stan toolchain and
-      # several minutes of compilation. The site is built with the vignette's
-      # code shown but not evaluated (see its `has_stan` guard) -- no cmdstanr
-      # or rstan is installed here, so `has_stan` is FALSE on the runner.
       - name: Build site
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}

@@ -7,3 +7,6 @@
 ^docs$
 ^pkgdown$
 ^\.github$
+^vignettes/articles$
+^vignettes/.*\.orig$
+^vignettes/precompile\.R$
