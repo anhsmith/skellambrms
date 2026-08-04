@@ -1,19 +1,9 @@
-url: https://anhsmith.github.io/pairedcountbrms/
+url: https://anhsmith.github.io/skellambrms/
 
 template:
   bootstrap: 5
 
 reference:
-- title: Joint bivariate-count families
-  desc: >
-    Model the matched pair jointly via trivariate reduction, capturing its
-    correlation, marginal overdispersion, and difference together rather than
-    the difference alone.
-  contents:
-  - bipois
-  - binegbin
-  - binegbin_joint
-
 - title: Difference families
   desc: >
     Model the difference `d = y1 - y2` directly. The `1` variants fix the
@@ -29,8 +19,8 @@ reference:
 
 - title: Truncation support
   desc: >
-    Stan `lccdf` functions injected as stanvars so the difference families
-    normalise correctly under `resp_trunc()`.
+    Stan `lccdf` functions injected as stanvars so each family normalises
+    correctly under `resp_trunc()`.
   contents:
   - skellam1_lccdf_stanvars
   - skellam2_lccdf_stanvars
@@ -41,9 +31,6 @@ reference:
 
 - title: Parameterisation helpers
   desc: >
-    Convert between the dpars a family takes and more interpretable
-    coordinates.
+    Read a fitted family's dpars under the names its documentation uses.
   contents:
   - skellam2_dpars
-  - binegbin_mfd_to_dpars
-  - binegbin_dpars_to_mfd

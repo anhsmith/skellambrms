@@ -33,20 +33,21 @@ jobs:
           # cannot resolve it and dependency solving fails outright.
           extra-repositories: https://stan-dev.r-universe.dev
 
-      # `dependencies: '"hard"'` deliberately skips Suggests. Nothing built
-      # here needs a Stan backend: BOTH the vignette and the paired-count-anatomy
-      # article are precompiled from their .Rmd.orig sources (see
-      # vignettes/precompile.R), so every model fit is already baked in as static
-      # output. Installing cmdstanr would be actively harmful -- the package
-      # would be present but the cmdstan binary would not, so anything that
-      # tried to sample would fail.
+      # `dependencies: '"hard"'` deliberately skips Suggests. Nothing built here
+      # needs a Stan backend: the site is the README plus the reference pages,
+      # and this package carries no vignettes or articles that fit a model.
+      # Installing cmdstanr would be actively harmful -- the package would be
+      # present but the cmdstan binary would not, so anything that tried to
+      # sample would fail.
+      #
+      # If a vignette that fits a model is added later, precompile it from an
+      # .Rmd.orig rather than letting this job build it; that is the pattern
+      # https://github.com/anhsmith/bicountbrms uses.
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           dependencies: '"hard"'
           extra-packages: |
             any::pkgdown
-            any::knitr
-            any::rmarkdown
             local::.
           needs: website
 
@@ -54,10 +55,16 @@ jobs:
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
 
+      # `clean: true`, not false. build_site_github_pages() writes the COMPLETE
+      # site into docs/ every run, so nothing on the branch needs preserving,
+      # and not cleaning means a page for a removed topic stays served for ever
+      # at its old URL. That is not hypothetical: this repository's history
+      # includes a period as `pairedcountbrms`, whose gh-pages branch documented
+      # families that are no longer here.
       - name: Deploy to GitHub pages 🚀
         if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@v4.8.0
         with:
-          clean: false
+          clean: true
           branch: gh-pages
           folder: docs

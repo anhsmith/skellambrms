@@ -6,9 +6,5 @@
 ^CLAUDE\.md$
 ^_pkgdown\.yml$
 ^docs$
-^migration$
 ^pkgdown$
 ^\.github$
-^vignettes/articles$
-^vignettes/.*\.orig$
-^vignettes/precompile\.R$

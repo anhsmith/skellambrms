@@ -45,7 +45,7 @@ test_that("parameter recovery from simulated hierarchical data", {
 
   # 1 & 2. Smoke gate on sigma_intercept (log(sigma) scale) and sigma_group.
   # A wide interval on purpose: at 90% each of these fails 10% of the time on a
-  # CORRECT model. See helper-coverage.R for the smoke-vs-calibration split.
+  # CORRECT model. See helper-recovery.R for the smoke-vs-calibration split.
   intercept_q <- quantile(draws[["b_Intercept"]], c(0.005, 0.995))
   expect_true(
     recovery_ok(draws, true_sigma_intercept, "b_Intercept"),
