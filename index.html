@@ -13,6 +13,7 @@
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Skellam and Discrete-Difference brms Custom Families for Count Differences">
 <meta name="description" content="Provides custom brms families for a Z-valued difference between two paired counts, d = y1 - y2, for when only the disagreement between two sources is of interest or truncation via brmss resp_trunc() is required. Six families are supplied: the symmetric and asymmetric Skellam distributions (the distribution of the difference of two Poisson random variables), and discrete Laplace and discrete normal distributions discretised via CDF differencing, each with location fixed at zero or free, all sampled on a common SD-scale spread parameter. Stan log-CCDF functions are provided as stanvars so that every family normalises correctly under truncation. Where the pairs overall level and correlation matter as well as its difference, model the pair jointly instead: see the companion package bicountbrms.">
 <meta property="og:description" content="Provides custom brms families for a Z-valued difference between two paired counts, d = y1 - y2, for when only the disagreement between two sources is of interest or truncation via brmss resp_trunc() is required. Six families are supplied: the symmetric and asymmetric Skellam distributions (the distribution of the difference of two Poisson random variables), and discrete Laplace and discrete normal distributions discretised via CDF differencing, each with location fixed at zero or free, all sampled on a common SD-scale spread parameter. Stan log-CCDF functions are provided as stanvars so that every family normalises correctly under truncation. Where the pairs overall level and correlation matter as well as its difference, model the pair jointly instead: see the companion package bicountbrms.">
+<meta property="og:image" content="https://anhsmith.github.io/skellambrms/logo.svg">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -47,8 +48,10 @@
 </nav><div class="container template-home">
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
-<div class="page-header"><h1 id="skellambrms">skellambrms<a class="anchor" aria-label="anchor" href="#skellambrms"></a>
-</h1></div>
+<div class="page-header">
+<img src="logo.svg" class="logo" alt=""><h1 id="skellambrms-">skellambrms <a class="anchor" aria-label="anchor" href="#skellambrms-"></a>
+</h1>
+</div>
 <!-- badges: start -->
 
 <p>Custom <a href="https://paulbuerkner.com/brms/" class="external-link">brms</a> families (Bürkner 2017) for the <strong>difference between two paired counts</strong>, <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><msub><mi>y</mi><mn>1</mn></msub><mo>−</mo><msub><mi>y</mi><mn>2</mn></msub><mo>∈</mo><mi>ℤ</mi></mrow><annotation encoding="application/x-tex">d = y_1 - y_2 \in \mathbb{Z}</annotation></semantics></math>: two observers, two instruments, two reporting channels, where the question is how much and how systematically they disagree.</p>
@@ -431,7 +434,7 @@ P(Z = z) = F\!\left(z + \tfrac12\right) - F\!\left(z - \tfrac12\right),
 <div class="developers">
 <h2 data-toc-skip>Developers</h2>
 <ul class="list-unstyled">
-<li>Adam N. H. Smith <br><small class="roles"> Author, maintainer </small>   </li>
+<li>Adam N. H. Smith <br><small class="roles"> Author, maintainer </small> <a href="https://orcid.org/0000-0003-0059-6206" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a>  </li>
 </ul>
 </div>
 
