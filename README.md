@@ -1,4 +1,4 @@
-# skellambrms
+# skellambrms <img src="man/figures/logo.png" align="right" height="139" alt="skellambrms logo" />
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/anhsmith/skellambrms/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/anhsmith/skellambrms/actions/workflows/R-CMD-check.yaml)
