@@ -41,7 +41,7 @@ h_min   <- 13                        # floor, so the outermost bars stay visible
 
 heights <- pmax(h_max * pmf / max(pmf), h_min)
 
-base_y <- 372                                        # common baseline
+base_y <- 356                                        # common baseline
 span   <- length(d) * pitch_x - gap_x
 x0     <- (W - span) / 2
 
@@ -89,7 +89,7 @@ svg <- c(
     x0 - 16, base_y + 1.25, x0 + span + 16, base_y + 1.25, col_ink
   ),
   sprintf(
-    '    <text x="%.2f" y="454" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="54" font-weight="600" letter-spacing="0.5" fill="%s">skellambrms</text>',
+    '    <text x="%.2f" y="440" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="59" font-weight="600" letter-spacing="0.5" fill="%s">skellambrms</text>',
     W / 2, col_ink
   ),
   '  </g>',
