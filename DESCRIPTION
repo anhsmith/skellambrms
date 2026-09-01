@@ -2,7 +2,7 @@ Package: skellambrms
 Title: Skellam and Discrete-Difference 'brms' Custom Families for Count
     Differences
 Version: 0.6.0
-Date: 2026-08-04
+Date: 2026-09-02
 Authors@R:
     person("Adam N. H.", "Smith", , "anhsmith@gmail.com",
            role = c("aut", "cre"),
