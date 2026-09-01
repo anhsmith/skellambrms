@@ -35,11 +35,11 @@
 * **Roxygen markdown is enabled, which changes every help page.** `DESCRIPTION`
   gained `Roxygen: list(markdown = TRUE)`, which this package had never set, so
   roxygen had been passing markdown through to Rd uninterpreted. Regenerating
-  the 13 Rd files converted 502 literal backticks into 251 code spans. Bold and
-  italic markers that had been printing as their own asterisks now render. The
-  topics also gained cross-references, of which there had been none: each
-  family links to its `_lccdf_stanvars()` companion and to the families it is
-  meant to be fitted against.
+  the Rd files turned that markdown into Rd markup throughout: code spans that
+  had been printing as literal backticks, and bold and italic that had been
+  printing as their own asterisks. The topics also gained cross-references, of
+  which there had been none: each family links to its `_lccdf_stanvars()`
+  companion and to the families it is meant to be fitted against.
 
   Markdown interpretation is retroactive, so every topic was rendered with
   `tools::Rd2txt()` before and after and diffed word by word. One expression
