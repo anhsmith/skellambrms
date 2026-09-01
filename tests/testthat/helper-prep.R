@@ -20,7 +20,7 @@
 # No `vint()` support: these families declare a single response and no
 # supplementary integer data. The joint bivariate-count families that needed it
 # are in https://github.com/anhsmith/bicountbrms, whose copy of this helper
-# carries the `vint1`/`vint2` arguments.
+# takes the `vint1`/`vint2` arguments.
 make_synthetic_prep <- function(dpars, Y, lb = NULL, ub = NULL) {
   nobs <- length(Y)
   ndraws <- unique(vapply(dpars, function(x) {

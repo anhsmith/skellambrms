@@ -22,7 +22,7 @@ log_laplace_cdf <- function(x, b) {
 }
 
 # Stable log-CCDF (log(1-F(x))) of the continuous Laplace(0, b). For
-# x >= 0 this is the *exact* closed form log(0.5) - x/b (the upper-tail
+# x >= 0, this is the *exact* closed form log(0.5) - x/b (the upper-tail
 # survival function), not "1 - F(x)" computed via exp()/log1p() --
 # computing it that way (log1p(-exp(log_laplace_cdf(x,b)))) re-introduces
 # the same 1-tiny~1.0 cancellation log_laplace_cdf's own log1p form was

@@ -7,16 +7,16 @@
 dnorm1_lccdf_stanvars()
 }
 \value{
-A `brms::stanvars` object defining the `dnorm1_lccdf` Stan
-  function, for combining with `dnorm1_stanvars()` via `+`.
+A \code{brms::stanvars} object defining the \code{dnorm1_lccdf} Stan
+function, for combining with \code{dnorm1_stanvars()} via \code{+}.
 }
 \description{
-Returns a `brms::stanvar()` defining `dnorm1_lccdf`, the log
+Returns a \code{brms::stanvar()} defining \code{dnorm1_lccdf}, the log
 complementary CDF of the discrete Normal(0, sigma) family --
-`dnorm1_lccdf(y, sigma)` = log P(Z > y). Same role and calling
-convention as `dlaplace1_lccdf_stanvars()`, but built directly on
-Stan's `normal_lccdf` (an upper-tail log-survival function Stan
+\code{dnorm1_lccdf(y, sigma)} = log P(Z > y). Same role and calling
+convention as \code{dlaplace1_lccdf_stanvars()}, but built directly on
+Stan's \code{normal_lccdf} (an upper-tail log-survival function Stan
 exposes as a built-in for the normal), rather than a
-`log1m_exp(lcdf(...))` composition -- no threshold argument and no
+\code{log1m_exp(lcdf(...))} composition -- no threshold argument and no
 large-argument failure mode to guard against.
 }

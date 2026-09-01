@@ -52,9 +52,9 @@
 #               suite skipping in a job whose whole purpose is to run it.
 #
 # NOTE: GitHub disables scheduled workflows after 60 days with no commits to the
-# repository. If this package goes quiet, the weekly run stops -- watch for the
-# warning email, and use the Actions tab's "Run workflow" button to fire
-# check-stan by hand at any time.
+# repository, so the weekly run stops once 60 days pass with nothing pushed --
+# watch for the warning email, and use the Actions tab's "Run workflow" button
+# to fire check-stan by hand at any time.
 
 on:
   push:
@@ -115,7 +115,7 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
-      # THE POINT OF THIS JOB. Without it every model fit is skipped.
+      # WHY THIS JOB EXISTS. Without it every model fit is skipped.
       NOT_CRAN: true
     steps:
       - uses: actions/checkout@v5

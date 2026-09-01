@@ -8,13 +8,13 @@
 dnorm2_lccdf_stanvars()
 }
 \value{
-A `brms::stanvars` object defining the `dnorm2_lccdf` Stan
-  function, for combining with `dnorm2_stanvars()` via `+`.
+A \code{brms::stanvars} object defining the \code{dnorm2_lccdf} Stan
+function, for combining with \code{dnorm2_stanvars()} via \code{+}.
 }
 \description{
-Returns a `brms::stanvar()` defining `dnorm2_lccdf`, the log
+Returns a \code{brms::stanvar()} defining \code{dnorm2_lccdf}, the log
 complementary CDF of the discrete Normal(mu, sigma) family --
-`dnorm2_lccdf(y, mu, sigma)` = log P(Z > y). Same role, calling
+\code{dnorm2_lccdf(y, mu, sigma)} = log P(Z > y). Same role, calling
 convention, and no-threshold-argument rationale as
-`dnorm1_lccdf_stanvars()`.
+\code{dnorm1_lccdf_stanvars()}.
 }

@@ -17,14 +17,14 @@
 #' (link = "log"); it now samples on sigma instead, for a common
 #' (mean, SD-scale) convention shared with skellam2(), dlaplace1(), and
 #' dlaplace2(). Since sigma = sqrt(2 * mu_skellam), a prior previously
-#' stated on log(mu_skellam) — e.g. normal(1, 1.5) — translates as:
+#' written on log(mu_skellam) — e.g. normal(1, 1.5) — translates as:
 #'   log(sigma) = 0.5 * log(2) + 0.5 * log(mu_skellam)
 #' so an intercept of 1 on the old log(mu_skellam) scale corresponds to
-#' an intercept of 0.5*log(2) + 0.5*1 ≈ 0.847 on the new log(sigma) scale,
+#' an intercept of `0.5*log(2) + 0.5*1` ≈ 0.847 on the new log(sigma) scale,
 #' and the old prior's SD of 1.5 becomes 0.75 on the new scale (a linear
 #' transform of a normal is normal). This is a scale correspondence only —
-#' slope-coefficient interpretations from the old parameterisation are
-#' NOT carried forward; any offset-vs-free-slope diagnostic should be
+#' slope-coefficient interpretations from the old parameterisation do
+#' NOT transfer; any offset-vs-free-slope diagnostic should be
 #' redone fresh against this sigma-scale parameterisation.
 #'
 #' @details
@@ -43,7 +43,16 @@
 #' that no code in this package, other than the literal `dpars`/
 #' `get_dpar()` calls forced by brms, ever refers to it as `mu`.
 #'
-#' @return A brms custom_family object.
+#' @return
+#' `skellam1()` returns a brms `custom_family` object. `skellam1_stanvars()`
+#' returns a `stanvars` object holding the Stan code for `skellam1_lpmf`.
+#' `log_lik_skellam1()` returns a numeric vector of log-densities, one per
+#' posterior draw, for observation `i`. `posterior_predict_skellam1()`
+#' returns a vector of simulated differences, one per posterior draw, for
+#' observation `i`, drawn subject to that row's `resp_trunc()` bounds where
+#' it has any. `posterior_epred_skellam1()` returns a draws x observations
+#' matrix of means, taken over the truncated distribution on any row that is
+#' bounded.
 #' @export
 skellam1 <- function() {
   brms::custom_family(
@@ -92,7 +101,7 @@ skellam1_stanvars <- function() {
 #'   CPU-seconds and several GB of memory consumed without completing one
 #'   iteration.
 #'
-#' The exact loop also carries a hard cap of 500 iterations past `y`,
+#' The exact loop is also capped at 500 iterations past `y`,
 #' with an early exit once the tail term becomes negligible (more than
 #' ~40 log-units below the running sum). These guard the same two
 #' failure modes as the threshold itself and are not configurable here.
@@ -240,7 +249,7 @@ posterior_epred_skellam1 <- function(prep) {
 #' sigmaexcess^2/2 >= 0` and `theta2 = sigmaexcess^2/2 >= 0`; for `mu <
 #' 0`, the roles swap) — strictly positive whenever `sigmaexcess > 0`,
 #' which the log link guarantees for any finite linear predictor. At
-#' `mu = 0` this reduces exactly to skellam1's symmetric family
+#' `mu = 0`, this reduces exactly to skellam1's symmetric family
 #' (`sigma = sigmaexcess`, `theta1 = theta2 = sigmaexcess^2 / 2`).
 #'
 #' **Generated-quantities note.** This family does *not* expose `mu`,
@@ -256,7 +265,16 @@ posterior_epred_skellam1 <- function(prep) {
 #' splines. `skellam2_dpars()` (below) reports the same five quantities
 #' from R instead, via `brms::get_dpar()` — works for any formula.
 #'
-#' @return A brms custom_family object.
+#' @return
+#' `skellam2()` returns a brms `custom_family` object. `skellam2_stanvars()`
+#' returns a `stanvars` object holding the Stan code for `skellam2_lpmf`.
+#' `log_lik_skellam2()` returns a numeric vector of log-densities, one per
+#' posterior draw, for observation `i`. `posterior_predict_skellam2()`
+#' returns a vector of simulated differences, one per posterior draw, for
+#' observation `i`, drawn subject to that row's `resp_trunc()` bounds where
+#' it has any. `posterior_epred_skellam2()` returns a draws x observations
+#' matrix of means, taken over the truncated distribution on any row that is
+#' bounded.
 #' @export
 skellam2 <- function() {
   brms::custom_family(
@@ -433,7 +451,16 @@ posterior_epred_skellam2 <- function(prep) {
 #' instead — the documented fallback for when a package reference isn't
 #' applicable.
 #'
-#' @return A brms custom_family object.
+#' @return
+#' `dlaplace1()` returns a brms `custom_family` object.
+#' `dlaplace1_stanvars()` returns a `stanvars` object holding the Stan code
+#' for `dlaplace1_lpmf`. `log_lik_dlaplace1()` returns a numeric vector of
+#' log-densities, one per posterior draw, for observation `i`.
+#' `posterior_predict_dlaplace1()` returns a vector of simulated
+#' differences, one per posterior draw, for observation `i`, drawn subject
+#' to that row's `resp_trunc()` bounds where it has any.
+#' `posterior_epred_dlaplace1()` returns a draws x observations matrix of
+#' means, taken over the truncated distribution on any row that is bounded.
 #' @export
 dlaplace1 <- function() {
   brms::custom_family(
@@ -559,11 +586,11 @@ posterior_epred_dlaplace1 <- function(prep) {
 #' difference from `skellam2()`, which structurally requires `sigma >=
 #' |mu|` (the Skellam family's actual mean/variance relationship — see
 #' `?skellam2` Details). The discrete Laplace has no such relationship:
-#' `mu` and `sigma` are free, independent parameters. The point of
-#' having both an asymmetric-Skellam and a free-location discrete-Laplace
-#' family in this package is to compare a model where bias and spread are
-#' structurally coupled (skellam2) against one where they are not
-#' (dlaplace2) — do not impose any artificial coupling here.
+#' `mu` and `sigma` are free, independent parameters. Fitting
+#' `skellam2()` against `dlaplace2()` compares a model where bias and
+#' spread are structurally coupled against one where they are not. This
+#' package supplies both families for that comparison. Do not impose any
+#' artificial coupling here.
 #'
 #' **sigma-to-b conversion.** Same as `dlaplace1()`: `b = sigma /
 #' sqrt(2)`. `mu` is passed straight through to
@@ -571,7 +598,16 @@ posterior_epred_dlaplace1 <- function(prep) {
 #' and scale directly, like `normal_lcdf`), so no manual shift of `z` is
 #' needed in the Stan code.
 #'
-#' @return A brms custom_family object.
+#' @return
+#' `dlaplace2()` returns a brms `custom_family` object.
+#' `dlaplace2_stanvars()` returns a `stanvars` object holding the Stan code
+#' for `dlaplace2_lpmf`. `log_lik_dlaplace2()` returns a numeric vector of
+#' log-densities, one per posterior draw, for observation `i`.
+#' `posterior_predict_dlaplace2()` returns a vector of simulated
+#' differences, one per posterior draw, for observation `i`, drawn subject
+#' to that row's `resp_trunc()` bounds where it has any.
+#' `posterior_epred_dlaplace2()` returns a draws x observations matrix of
+#' means, taken over the truncated distribution on any row that is bounded.
 #' @export
 dlaplace2 <- function() {
   brms::custom_family(
@@ -707,7 +743,16 @@ posterior_epred_dlaplace2 <- function(prep) {
 #' PMF rather than the CCDF, since CDF differencing is itself the
 #' operation that creates the cancellation risk in the first place.
 #'
-#' @return A brms custom_family object.
+#' @return
+#' `dnorm1()` returns a brms `custom_family` object. `dnorm1_stanvars()`
+#' returns a `stanvars` object holding the Stan code for `dnorm1_lpmf`.
+#' `log_lik_dnorm1()` returns a numeric vector of log-densities, one per
+#' posterior draw, for observation `i`. `posterior_predict_dnorm1()` returns
+#' a vector of simulated differences, one per posterior draw, for
+#' observation `i`, drawn subject to that row's `resp_trunc()` bounds where
+#' it has any. `posterior_epred_dnorm1()` returns a draws x observations
+#' matrix of means, taken over the truncated distribution on any row that is
+#' bounded.
 #' @export
 dnorm1 <- function() {
   brms::custom_family(
@@ -834,16 +879,25 @@ posterior_epred_dnorm1 <- function(prep) {
 #' **No constraint coupling mu and sigma.** Same structural contrast with
 #' `skellam2()` already documented for `dlaplace2()` (see `?dlaplace2`
 #' Details): `mu` and `sigma` are free, independent parameters here, by
-#' design -- the point of having multiple free-location/free-scale
-#' candidate families alongside the asymmetric Skellam is to compare a
-#' model where bias and spread are structurally coupled (skellam2)
-#' against ones where they are not (dlaplace2, dnorm2).
+#' design. Fitting `skellam2()` against `dlaplace2()` and `dnorm2()`
+#' compares a model where bias and spread are structurally coupled
+#' against ones where they are not; this package supplies all three
+#' families for that comparison.
 #'
 #' **Cancellation in the PMF.** Same issue and fix as `dnorm1()` (see its
 #' Details), generalised to branch on whether `z` is on the far side of
 #' `mu` rather than of 0.
 #'
-#' @return A brms custom_family object.
+#' @return
+#' `dnorm2()` returns a brms `custom_family` object. `dnorm2_stanvars()`
+#' returns a `stanvars` object holding the Stan code for `dnorm2_lpmf`.
+#' `log_lik_dnorm2()` returns a numeric vector of log-densities, one per
+#' posterior draw, for observation `i`. `posterior_predict_dnorm2()` returns
+#' a vector of simulated differences, one per posterior draw, for
+#' observation `i`, drawn subject to that row's `resp_trunc()` bounds where
+#' it has any. `posterior_epred_dnorm2()` returns a draws x observations
+#' matrix of means, taken over the truncated distribution on any row that is
+#' bounded.
 #' @export
 dnorm2 <- function() {
   brms::custom_family(

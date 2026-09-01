@@ -35,7 +35,7 @@ jobs:
 
       # `dependencies: '"hard"'` deliberately skips Suggests. Nothing built here
       # needs a Stan backend: the site is the README plus the reference pages,
-      # and this package carries no vignettes or articles that fit a model.
+      # and this package contains no vignettes or articles that fit a model.
       # Installing cmdstanr would be actively harmful -- the package would be
       # present but the cmdstan binary would not, so anything that tried to
       # sample would fail.

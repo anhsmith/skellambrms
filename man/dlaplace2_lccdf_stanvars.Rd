@@ -8,13 +8,13 @@
 dlaplace2_lccdf_stanvars()
 }
 \value{
-A `brms::stanvars` object defining the `dlaplace2_lccdf` Stan
-  function, for combining with `dlaplace2_stanvars()` via `+`.
+A \code{brms::stanvars} object defining the \code{dlaplace2_lccdf} Stan
+function, for combining with \code{dlaplace2_stanvars()} via \code{+}.
 }
 \description{
-Returns a `brms::stanvar()` defining `dlaplace2_lccdf`, the log
+Returns a \code{brms::stanvar()} defining \code{dlaplace2_lccdf}, the log
 complementary CDF of the discrete Laplace(mu, sigma) family --
-`dlaplace2_lccdf(y, mu, sigma)` = log P(Z > y). Same role, calling
+\code{dlaplace2_lccdf(y, mu, sigma)} = log P(Z > y). Same role, calling
 convention, and no-threshold-argument rationale as
-`dlaplace1_lccdf_stanvars()`.
+\code{dlaplace1_lccdf_stanvars()}.
 }

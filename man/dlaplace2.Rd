@@ -19,38 +19,44 @@ posterior_predict_dlaplace2(i, prep, ...)
 posterior_epred_dlaplace2(prep)
 }
 \value{
-A brms custom_family object.
+\code{dlaplace2()} returns a brms \code{custom_family} object.
+\code{dlaplace2_stanvars()} returns a \code{stanvars} object holding the Stan code
+for \code{dlaplace2_lpmf}. \code{log_lik_dlaplace2()} returns a numeric vector of
+log-densities, one per posterior draw, for observation \code{i}.
+\code{posterior_predict_dlaplace2()} returns a vector of simulated
+differences, one per posterior draw, for observation \code{i}, drawn subject
+to that row's \code{resp_trunc()} bounds where it has any.
+\code{posterior_epred_dlaplace2()} returns a draws x observations matrix of
+means, taken over the truncated distribution on any row that is bounded.
 }
 \description{
 Returns a brms custom family for the discrete Laplace distribution
-with both location (`mu`, link = "identity") and scale (`sigma`,
+with both location (\code{mu}, link = "identity") and scale (\code{sigma},
 link = "log") free, discretised via CDF differencing exactly as
-`dlaplace1()` but centred at `mu` instead of fixed at 0:
-`P(Z=z) = F(z+0.5) - F(z-0.5)`, `F` the continuous Laplace(mu, b) CDF.
+\code{dlaplace1()} but centred at \code{mu} instead of fixed at 0:
+\code{P(Z=z) = F(z+0.5) - F(z-0.5)}, \code{F} the continuous Laplace(mu, b) CDF.
 
 Use in a brm() call as:
-  brm(y ~ ..., family = dlaplace2(), stanvars = dlaplace2_stanvars(), data = ...)
+brm(y ~ ..., family = dlaplace2(), stanvars = dlaplace2_stanvars(), data = ...)
 }
 \details{
-**No naming workaround needed.** Unlike `skellam1()`/`dlaplace1()`,
-`mu` here genuinely is the family's mean, so brms's "must have a `mu`
-parameter" requirement (see `?skellam1` Details) is satisfied
+\strong{No naming workaround needed.} Unlike \code{skellam1()}/\code{dlaplace1()},
+\code{mu} here genuinely is the family's mean, so brms's "must have a \code{mu}
+parameter" requirement (see \code{?skellam1} Details) is satisfied
 directly — no forced reinterpretation.
 
-**No constraint coupling mu and sigma.** This is a genuine structural
-difference from `skellam2()`, which structurally requires `sigma >=
-|mu|` (the Skellam family's actual mean/variance relationship — see
-`?skellam2` Details). The discrete Laplace has no such relationship:
-`mu` and `sigma` are free, independent parameters. The point of
-having both an asymmetric-Skellam and a free-location discrete-Laplace
-family in this package is to compare a model where bias and spread are
-structurally coupled (skellam2) against one where they are not
-(dlaplace2) — do not impose any artificial coupling here.
+\strong{No constraint coupling mu and sigma.} This is a genuine structural
+difference from \code{skellam2()}, which structurally requires \verb{sigma >= |mu|} (the Skellam family's actual mean/variance relationship — see
+\code{?skellam2} Details). The discrete Laplace has no such relationship:
+\code{mu} and \code{sigma} are free, independent parameters. Fitting
+\code{skellam2()} against \code{dlaplace2()} compares a model where bias and
+spread are structurally coupled against one where they are not. This
+package supplies both families for that comparison. Do not impose any
+artificial coupling here.
 
-**sigma-to-b conversion.** Same as `dlaplace1()`: `b = sigma /
-sqrt(2)`. `mu` is passed straight through to
-`double_exponential_lcdf`'s own location argument (it takes location
-and scale directly, like `normal_lcdf`), so no manual shift of `z` is
+\strong{sigma-to-b conversion.} Same as \code{dlaplace1()}: \code{b = sigma / sqrt(2)}. \code{mu} is passed straight through to
+\code{double_exponential_lcdf}'s own location argument (it takes location
+and scale directly, like \code{normal_lcdf}), so no manual shift of \code{z} is
 needed in the Stan code.
 }
 \keyword{internal}

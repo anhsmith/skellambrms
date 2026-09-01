@@ -69,7 +69,7 @@ test_that("R log-PMF normalises to 1 across grid", {
     # exponential) tail needs far fewer SDs to capture essentially all
     # the mass -- at sigma=100, 8 SDs (kmax=800) already gives a total
     # mass of 1 to 12 decimal places; 10 SDs is a comfortable margin
-    # beyond that, not a value blindly carried over from dlaplace1.
+    # beyond that, not a value copied from dlaplace1 without checking.
     kmax  <- ceiling(10 * sigma + 20)
     total <- sum(exp(r_lpmf_dnorm1(-kmax:kmax, sigma)))
     expect_equal(total, 1, tolerance = 1e-8, label = paste0("sigma = ", sigma))

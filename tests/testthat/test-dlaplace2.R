@@ -5,8 +5,8 @@
 # test-dlaplace1.R's file header for why extraDistr::ddlaplace() is not
 # a usable reference, and for the numerically stable log-space reference
 # pattern (direct closed-form survival function for the lccdf, not
-# "1 - exp(log CDF)") used here too -- both lessons carried straight over
-# from getting dlaplace1's tests right.
+# "1 - exp(log CDF)") used here too -- both lessons transfer directly from
+# getting dlaplace1's tests right.
 
 log_laplace_cdf <- function(x, b) {
   ifelse(x < 0, log(0.5) + x / b, log1p(-0.5 * exp(-x / b)))

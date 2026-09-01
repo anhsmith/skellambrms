@@ -8,21 +8,21 @@ skellam2_lccdf_stanvars(normal_approx_threshold = 100)
 }
 \arguments{
 \item{normal_approx_threshold}{Numeric scalar; see
-`skellam1_lccdf_stanvars()` for how to choose this for your data.
-Default `100`.}
+\code{skellam1_lccdf_stanvars()} for how to choose this for your data.
+Default \code{100}.}
 }
 \value{
-A `brms::stanvars` object defining the `skellam2_lccdf` Stan
-  function, for combining with `skellam2_stanvars()` via `+`.
+A \code{brms::stanvars} object defining the \code{skellam2_lccdf} Stan
+function, for combining with \code{skellam2_stanvars()} via \code{+}.
 }
 \description{
-Returns a `brms::stanvar()` defining `skellam2_lccdf`, the log
+Returns a \code{brms::stanvar()} defining \code{skellam2_lccdf}, the log
 complementary CDF of the asymmetric Skellam(theta1, theta2)
-distribution — `skellam2_lccdf(y, mu, sigmaexcess)` = log P(delta > y).
-Same role and calling convention as `skellam1_lccdf_stanvars()`; see
-that function's documentation for how `resp_trunc()` locates it and
+distribution — \code{skellam2_lccdf(y, mu, sigmaexcess)} = log P(delta > y).
+Same role and calling convention as \code{skellam1_lccdf_stanvars()}; see
+that function's documentation for how \code{resp_trunc()} locates it and
 for the rationale behind the normal-approximation threshold (here
-checked against `mu_skellam = (theta1 + theta2) / 2`, the direct
+checked against \code{mu_skellam = (theta1 + theta2) / 2}, the direct
 generalisation of skellam1's threshold quantity to the asymmetric
 case — see skellam2_lccdf_stan() in stanfunctions.R).
 }

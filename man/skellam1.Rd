@@ -19,7 +19,15 @@ posterior_predict_skellam1(i, prep, ...)
 posterior_epred_skellam1(prep)
 }
 \value{
-A brms custom_family object.
+\code{skellam1()} returns a brms \code{custom_family} object. \code{skellam1_stanvars()}
+returns a \code{stanvars} object holding the Stan code for \code{skellam1_lpmf}.
+\code{log_lik_skellam1()} returns a numeric vector of log-densities, one per
+posterior draw, for observation \code{i}. \code{posterior_predict_skellam1()}
+returns a vector of simulated differences, one per posterior draw, for
+observation \code{i}, drawn subject to that row's \code{resp_trunc()} bounds where
+it has any. \code{posterior_epred_skellam1()} returns a draws x observations
+matrix of means, taken over the truncated distribution on any row that is
+bounded.
 }
 \description{
 Returns a brms custom family for the symmetric Skellam distribution,
@@ -31,36 +39,35 @@ transformed parameter and fed to the underlying Bessel-function PMF,
 which is otherwise unchanged.
 
 Use in a brm() call as:
-  brm(y ~ ..., family = skellam1(), stanvars = skellam1_stanvars(), data = ...)
+brm(y ~ ..., family = skellam1(), stanvars = skellam1_stanvars(), data = ...)
 }
 \details{
 This family was originally parameterised directly on mu_skellam
 (link = "log"); it now samples on sigma instead, for a common
 (mean, SD-scale) convention shared with skellam2(), dlaplace1(), and
 dlaplace2(). Since sigma = sqrt(2 * mu_skellam), a prior previously
-stated on log(mu_skellam) — e.g. normal(1, 1.5) — translates as:
-  log(sigma) = 0.5 * log(2) + 0.5 * log(mu_skellam)
+written on log(mu_skellam) — e.g. normal(1, 1.5) — translates as:
+log(sigma) = 0.5 * log(2) + 0.5 * log(mu_skellam)
 so an intercept of 1 on the old log(mu_skellam) scale corresponds to
-an intercept of 0.5*log(2) + 0.5*1 ≈ 0.847 on the new log(sigma) scale,
+an intercept of \code{0.5*log(2) + 0.5*1} ≈ 0.847 on the new log(sigma) scale,
 and the old prior's SD of 1.5 becomes 0.75 on the new scale (a linear
 transform of a normal is normal). This is a scale correspondence only —
-slope-coefficient interpretations from the old parameterisation are
-NOT carried forward; any offset-vs-free-slope diagnostic should be
+slope-coefficient interpretations from the old parameterisation do
+NOT transfer; any offset-vs-free-slope diagnostic should be
 redone fresh against this sigma-scale parameterisation.
 
-**Naming note.** `brms::custom_family()` hard-requires one `dpars`
-entry to be literally named `"mu"` (`stop2("All families must have a
-'mu' parameter.")`, unconditional, no override) — every family built
+\strong{Naming note.} \code{brms::custom_family()} hard-requires one \code{dpars}
+entry to be literally named \code{"mu"} (\code{stop2("All families must have a 'mu' parameter.")}, unconditional, no override) — every family built
 on it, including this one, must comply regardless of what that
 parameter actually represents. For skellam1, the brms/Stan-level dpar
-named `mu` IS sigma (the SD of the difference, log-linked); it is NOT
+named \code{mu} IS sigma (the SD of the difference, log-linked); it is NOT
 the distribution's mean, which is structurally zero throughout. This
 is a forced naming collision with brms's API, not a reversion to the
-pre-reparameterisation behaviour: internally, `mu_skellam = mu^2 / 2`
+pre-reparameterisation behaviour: internally, \code{mu_skellam = mu^2 / 2}
 is still derived from it before reaching the Bessel-function PMF,
 exactly as documented above for "sigma". All R-side helper functions
-below immediately rebind this dpar to a variable called `sigma` so
-that no code in this package, other than the literal `dpars`/
-`get_dpar()` calls forced by brms, ever refers to it as `mu`.
+below immediately rebind this dpar to a variable called \code{sigma} so
+that no code in this package, other than the literal \code{dpars}/
+\code{get_dpar()} calls forced by brms, ever refers to it as \code{mu}.
 }
 \keyword{internal}

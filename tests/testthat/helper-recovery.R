@@ -4,7 +4,7 @@
 #
 # WHY THIS EXISTS. The recovery tests used to assert that the true value falls
 # inside a single fit's 90% credible interval. For a CORRECT model with a
-# well-calibrated posterior that assertion is a Bernoulli(0.9) draw, so it
+# well-calibrated posterior, that assertion is a Bernoulli(0.9) draw, so it
 # fails 10% of the time by construction -- and across the ~18 such assertions
 # in the suite this package was split from, roughly 1.8 spurious failures per
 # run were expected. Two were observed on every run, and went unnoticed from the

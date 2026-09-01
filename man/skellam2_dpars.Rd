@@ -7,18 +7,18 @@
 skellam2_dpars(fit, newdata = NULL)
 }
 \arguments{
-\item{fit}{A `brmsfit` fitted with `family = skellam2()`.}
+\item{fit}{A \code{brmsfit} fitted with \code{family = skellam2()}.}
 
-\item{newdata}{Optional new data, passed to `brms::prepare_predictions()`.}
+\item{newdata}{Optional new data, passed to \code{brms::prepare_predictions()}.}
 }
 \value{
-A named list of draws x observations matrices: `mu`, `sigma`,
-  `sigmasq`, `theta1`, `theta2`.
+A named list of draws x observations matrices: \code{mu}, \code{sigma},
+\code{sigmasq}, \code{theta1}, \code{theta2}.
 }
 \description{
-Returns `mu`, `sigma`, `sigma^2`, `theta1`, and `theta2` (each a
-draws x observations matrix) from a `skellam2()` `brmsfit`, computed
-in R via `brms::get_dpar()` rather than a Stan `generated quantities`
-block — see "Generated-quantities note" in `?skellam2` for why the
+Returns \code{mu}, \code{sigma}, \code{sigma^2}, \code{theta1}, and \code{theta2} (each a
+draws x observations matrix) from a \code{skellam2()} \code{brmsfit}, computed
+in R via \code{brms::get_dpar()} rather than a Stan \verb{generated quantities}
+block — see "Generated-quantities note" in \code{?skellam2} for why the
 latter isn't available for this family.
 }

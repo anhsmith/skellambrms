@@ -7,15 +7,15 @@
 dlaplace1_lccdf_stanvars()
 }
 \value{
-A `brms::stanvars` object defining the `dlaplace1_lccdf` Stan
-  function, for combining with `dlaplace1_stanvars()` via `+`.
+A \code{brms::stanvars} object defining the \code{dlaplace1_lccdf} Stan
+function, for combining with \code{dlaplace1_stanvars()} via \code{+}.
 }
 \description{
-Returns a `brms::stanvar()` defining `dlaplace1_lccdf`, the log
+Returns a \code{brms::stanvar()} defining \code{dlaplace1_lccdf}, the log
 complementary CDF of the discrete Laplace(0, sigma) family --
-`dlaplace1_lccdf(y, sigma)` = log P(Z > y). Same role and calling
-convention as `skellam1_lccdf_stanvars()`. Unlike the Skellam
+\code{dlaplace1_lccdf(y, sigma)} = log P(Z > y). Same role and calling
+convention as \code{skellam1_lccdf_stanvars()}. Unlike the Skellam
 families' lccdf stanvars, this takes no threshold argument: the
-closed-form `log1m_exp(double_exponential_lcdf(...))` has no
+closed-form \code{log1m_exp(double_exponential_lcdf(...))} has no
 large-argument failure mode to guard against.
 }

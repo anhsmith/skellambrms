@@ -2,7 +2,7 @@
 
 * **The difference families are back under their original package name.**
   Between 0.5.0 and this release, this code was distributed as
-  `pairedcountbrms` (0.6.0–0.8.0), which carried two unrelated suites: these
+  `pairedcountbrms` (0.6.0–0.8.0), which contained two unrelated suites: these
   six families, which model the difference `d = y1 - y2`, and a set that models
   the count *pair* jointly. They shared no code — not a helper, not a Stan
   block, not a dependency — and have been separated again. The joint families
@@ -54,7 +54,7 @@ left as written rather than retrospectively edited. The full record of those
 releases, including everything omitted here, is in
 [`bicountbrms`'s NEWS](https://github.com/anhsmith/bicountbrms/blob/master/NEWS.md).
 
-Of the entries in that span, two touch these families:
+Of the entries in that span, two concern these families:
 
 * **0.7.0** re-parameterised `skellam1()` onto `sigma` (see that release's notes
   for the prior translation), rewrote the recovery tests as smoke gates, and
@@ -120,7 +120,7 @@ Of the entries in that span, two touch these families:
 * **Breaking change:** `skellam1()` now samples on `sigma`, the SD of the
   difference (log-linked), rather than the underlying Skellam rate
   directly. `mu_skellam = sigma^2 / 2` is derived internally; the
-  Bessel-sum likelihood itself is unchanged. A prior previously stated on
+  Bessel-sum likelihood itself is unchanged. A prior previously written on
   `log(mu_skellam)` translates as
   `log(sigma) = 0.5*log(2) + 0.5*log(mu_skellam)` — e.g. an old
   `normal(1, 1.5)` becomes `normal(0.847, 0.75)`. This reparameterisation

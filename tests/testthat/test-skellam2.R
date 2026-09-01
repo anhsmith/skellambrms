@@ -55,7 +55,7 @@ test_that("R log-PMF normalises to 1 across grid", {
       # Range scaled to the distribution's own spread (sigma), rather
       # than a fixed wide window -- summing to +-200 for a small-spread
       # case (e.g. se=0.5) evaluates besselI() at orders far beyond where
-      # the PMF carries any mass, which triggers benign but noisy
+      # the PMF places any mass, which triggers benign but noisy
       # "precision lost" warnings without changing the (negligible) sum.
       sigma  <- sqrt(abs(mu) + se^2)
       kmax   <- ceiling(abs(mu) + 20 * sigma + 20)

@@ -8,7 +8,7 @@ r_lpmf <- function(k, sigma) {
   log(besselI(2 * mu, abs(k), expon.scaled = TRUE))
 }
 
-# mu grid carried over unchanged from the pre-reparameterisation tests;
+# mu grid reused unchanged from the pre-reparameterisation tests;
 # sigma = sqrt(2 * mu) is the corresponding sampled-parameter grid.
 mu_vals    <- c(0.5, 1, 2, 5, 10, 20)
 sigma_vals <- sqrt(2 * mu_vals)

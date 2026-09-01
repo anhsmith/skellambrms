@@ -1,5 +1,5 @@
 Package: skellambrms
-Title: Skellam and Discrete-Difference brms Custom Families for Count
+Title: Skellam and Discrete-Difference 'brms' Custom Families for Count
     Differences
 Version: 0.6.0
 Date: 2026-08-04
@@ -7,18 +7,18 @@ Authors@R:
     person("Adam N. H.", "Smith", , "anhsmith@gmail.com",
            role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-0059-6206"))
-Description: Provides custom brms families for a Z-valued difference between
-    two paired counts, d = y1 - y2, for when only the disagreement between two
-    sources is of interest or truncation via brms's resp_trunc() is required.
-    Six families are supplied: the symmetric and asymmetric Skellam
-    distributions (the distribution of the difference of two Poisson random
-    variables), and discrete Laplace and discrete normal distributions
-    discretised via CDF differencing, each with location fixed at zero or free,
-    all sampled on a common SD-scale spread parameter. Stan log-CCDF functions
-    are provided as stanvars so that every family normalises correctly under
-    truncation. Where the pair's overall level and correlation matter as well
-    as its difference, model the pair jointly instead: see the companion
-    package bicountbrms.
+Description: Provides custom 'brms' families for a Z-valued difference
+    between two paired counts, d = y1 - y2, for when only the disagreement
+    between two sources is of interest or truncation via the 'brms' function
+    resp_trunc() is required. Six families are supplied: the symmetric and
+    asymmetric Skellam distributions (the distribution of the difference of
+    two Poisson random variables), and discrete Laplace and discrete normal
+    distributions discretised via CDF differencing, each with location fixed
+    at zero or free, all sampled on a common SD-scale spread parameter.
+    'Stan' log-CCDF functions are provided as stanvars so that every family
+    normalises correctly under truncation. Where the pair's overall level and
+    correlation matter as well as its difference, model the pair jointly
+    instead: see the companion package 'bicountbrms'.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Imports:
@@ -33,4 +33,5 @@ Config/testthat/edition: 3
 URL: https://github.com/anhsmith/skellambrms,
     https://anhsmith.github.io/skellambrms/
 BugReports: https://github.com/anhsmith/skellambrms/issues
+Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.0.0

@@ -20,7 +20,7 @@ skellam1_stan_funs <- "
 # since the right value depends on the data's plausible mu_skellam range
 # -- see skellam1_lccdf_stanvars() for the rationale and how to choose it
 # (the threshold is on the mu_skellam scale, not sigma, so existing
-# calibration advice carries over unchanged under the reparameterisation).
+# calibration advice applies unchanged under the reparameterisation).
 # The iteration cap (500) and early-exit tolerance are fixed: they guard
 # a confirmed std::bad_alloc crash in log_modified_bessel_first_kind and
 # a confirmed multi-GB memory blowup at extreme mu_skellam, independent of
@@ -155,7 +155,7 @@ skellam2_lccdf_stan <- function(normal_approx_threshold = 100) {
 # Treating sigma as exactly that continuous-Laplace SD (the
 # discretisation perturbs the true discrete variance only slightly, and
 # this keeps "sigma" on a common, directly-comparable scale across all
-# four families, which is the point of the convention) gives
+# four families) gives
 # sigma = b*sqrt(2), i.e.
 #   b = sigma / sqrt(2)
 # computed first thing in both functions below, before anything is
@@ -180,11 +180,11 @@ dlaplace1_lccdf_stan <- "
 
 # Stan function block for the discrete-Laplace log-PMF with free location
 # AND free scale -- no constraint coupling mu and sigma (a genuine
-# structural difference from skellam2's sigma >= |mu| floor: the point
-# of having both an asymmetric-Skellam and a free-location discrete-
-# Laplace family is to compare a model where bias and spread are
-# structurally coupled against one where they're independent, so no
-# constraint is imposed here). Same CDF-differencing and b conversion as
+# structural difference from skellam2's sigma >= |mu| floor: fitting an
+# asymmetric-Skellam model against a free-location discrete-Laplace one
+# compares a model where bias and spread are structurally coupled
+# against one where they are independent, so no constraint is imposed
+# here). Same CDF-differencing and b conversion as
 # dlaplace1 (b = sigma / sqrt(2)), but mu is passed straight through to
 # double_exponential_lcdf's own location argument rather than shifting z
 # manually -- Stan's double_exponential_lcdf(y | mu, b), like
@@ -264,10 +264,10 @@ dnorm1_lccdf_stan <- "
 # Stan function block for the discrete-normal log-PMF with free location
 # AND free scale -- no constraint coupling mu and sigma, the same
 # structural contrast with skellam2 already documented for dlaplace2 (see
-# dlaplace2_stan_funs above): the point of having both an asymmetric-
-# Skellam and free-location discrete families is to compare a model where
-# bias and spread are structurally coupled against ones where they are
-# not, so no constraint is imposed here either. mu enters by re-centring
+# dlaplace2_stan_funs above): fitting an asymmetric-Skellam model against
+# the free-location discrete families compares a model where bias and
+# spread are structurally coupled against ones where they are not, so no
+# constraint is imposed here either. mu enters by re-centring
 # before the erfc() argument, since erfc() itself takes no location/scale.
 #
 # Same z>=mu vs z<mu branch as dnorm1_lpmf above (centred on mu rather

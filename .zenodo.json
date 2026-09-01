@@ -1,0 +1,40 @@
+{
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "mit",
+  "title": "skellambrms: Skellam and Discrete-Difference brms Custom Families for Count Differences",
+  "creators": [
+    {
+      "name": "Smith, Adam N. H.",
+      "orcid": "0000-0003-0059-6206",
+      "affiliation": "Sea Through Science Limited"
+    }
+  ],
+  "description": "<p>Custom <a href=\"https://paulbuerkner.com/brms/\">brms</a> families for the difference between two paired counts, <code>d = y1 - y2</code>, taking values on the integers. Six families are supplied: the symmetric and asymmetric Skellam distributions (the distribution of the difference of two Poisson random variables), and discrete Laplace and discrete normal distributions discretised by CDF differencing. Each comes in a fixed-location form, whose mean is structurally zero, and a free-location form that estimates the systematic disagreement between the two sources. All six are parameterised on a common mean and SD-scale convention, so that fits are directly comparable.</p><p>Every family supplies a Stan log-CCDF function as a stanvar, so that <code>resp_trunc()</code> normalises the likelihood correctly under truncation, including a row-varying bound. Fitting the asymmetric Skellam against the free-location discrete Laplace and discrete normal tests whether the disagreement obeys the Skellam variance-exceeds-absolute-mean constraint: the Skellam couples location and spread structurally, and the other two leave them independent.</p><p>Where the pair's overall level and the correlation between the two sources matter as well as their difference, model the pair jointly instead: see the companion package <a href=\"https://github.com/anhsmith/bicountbrms\">bicountbrms</a>.</p><p>Documentation: <a href=\"https://anhsmith.github.io/skellambrms/\">https://anhsmith.github.io/skellambrms/</a></p>",
+  "keywords": [
+    "R",
+    "brms",
+    "Stan",
+    "Bayesian",
+    "Skellam",
+    "discrete Laplace",
+    "discrete normal",
+    "paired counts",
+    "count differences",
+    "custom family",
+    "truncation"
+  ],
+  "related_identifiers": [
+    {
+      "relation": "isDocumentedBy",
+      "identifier": "https://anhsmith.github.io/skellambrms/",
+      "scheme": "url"
+    },
+    {
+      "relation": "isSupplementTo",
+      "identifier": "https://github.com/anhsmith/skellambrms",
+      "scheme": "url"
+    }
+  ],
+  "language": "eng"
+}
