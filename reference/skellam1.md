@@ -27,35 +27,47 @@ posterior_epred_skellam1(prep)
 
 ## Value
 
-A brms custom_family object.
+`skellam1()` returns a brms `custom_family` object.
+`skellam1_stanvars()` returns a `stanvars` object holding the Stan code
+for `skellam1_lpmf`. `log_lik_skellam1()` returns a numeric vector of
+log-densities, one per posterior draw, for observation `i`.
+`posterior_predict_skellam1()` returns a vector of simulated
+differences, one per posterior draw, for observation `i`, drawn subject
+to that row's
+[`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html)
+bounds where it has any. `posterior_epred_skellam1()` returns a draws x
+observations matrix of means, taken over the truncated distribution on
+any row that is bounded.
 
 ## Details
 
 This family was originally parameterised directly on mu_skellam (link =
 "log"); it now samples on sigma instead, for a common (mean, SD-scale)
 convention shared with skellam2(), dlaplace1(), and dlaplace2(). Since
-sigma = sqrt(2 \* mu_skellam), a prior previously stated on
+sigma = sqrt(2 \* mu_skellam), a prior previously written on
 log(mu_skellam) — e.g. normal(1, 1.5) — translates as: log(sigma) = 0.5
 \* log(2) + 0.5 \* log(mu_skellam) so an intercept of 1 on the old
-log(mu_skellam) scale corresponds to an intercept of 0.5\*log(2) +
-0.5\*1 ≈ 0.847 on the new log(sigma) scale, and the old prior's SD of
-1.5 becomes 0.75 on the new scale (a linear transform of a normal is
-normal). This is a scale correspondence only — slope-coefficient
-interpretations from the old parameterisation are NOT carried forward;
-any offset-vs-free-slope diagnostic should be redone fresh against this
-sigma-scale parameterisation.
+log(mu_skellam) scale corresponds to an intercept of
+`0.5*log(2) + 0.5*1` ≈ 0.847 on the new log(sigma) scale, and the old
+prior's SD of 1.5 becomes 0.75 on the new scale (a linear transform of a
+normal is normal). This is a scale correspondence only —
+slope-coefficient interpretations from the old parameterisation do NOT
+transfer; any offset-vs-free-slope diagnostic should be redone fresh
+against this sigma-scale parameterisation.
 
-\*\*Naming note.\*\* \`brms::custom_family()\` hard-requires one
-\`dpars\` entry to be literally named \`"mu"\` (\`stop2("All families
-must have a 'mu' parameter.")\`, unconditional, no override) — every
-family built on it, including this one, must comply regardless of what
-that parameter actually represents. For skellam1, the brms/Stan-level
-dpar named \`mu\` IS sigma (the SD of the difference, log-linked); it is
-NOT the distribution's mean, which is structurally zero throughout. This
-is a forced naming collision with brms's API, not a reversion to the
-pre-reparameterisation behaviour: internally, \`mu_skellam = mu^2 / 2\`
-is still derived from it before reaching the Bessel-function PMF,
-exactly as documented above for "sigma". All R-side helper functions
-below immediately rebind this dpar to a variable called \`sigma\` so
-that no code in this package, other than the literal \`dpars\`/
-\`get_dpar()\` calls forced by brms, ever refers to it as \`mu\`.
+**Naming note.**
+[`brms::custom_family()`](https://paulbuerkner.com/brms/reference/custom_family.html)
+hard-requires one `dpars` entry to be literally named `"mu"`
+(`stop2("All families must have a 'mu' parameter.")`, unconditional, no
+override) — every family built on it, including this one, must comply
+regardless of what that parameter actually represents. For skellam1, the
+brms/Stan-level dpar named `mu` IS sigma (the SD of the difference,
+log-linked); it is NOT the distribution's mean, which is structurally
+zero throughout. This is a forced naming collision with brms's API, not
+a reversion to the pre-reparameterisation behaviour: internally,
+`mu_skellam = mu^2 / 2` is still derived from it before reaching the
+Bessel-function PMF, exactly as documented above for "sigma". All R-side
+helper functions below immediately rebind this dpar to a variable called
+`sigma` so that no code in this package, other than the literal `dpars`/
+[`get_dpar()`](https://paulbuerkner.com/brms/reference/get_dpar.html)
+calls forced by brms, ever refers to it as `mu`.

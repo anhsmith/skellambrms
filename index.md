@@ -19,33 +19,34 @@ Standard `brms` count families (Poisson, negative binomial, …) model a
 non-negative response and cannot take a $`\mathbb{Z}`$-valued one. This
 package supplies that.
 
-## When to model the difference, and when not to
+## Information discarded by reducing a pair to its difference
 
-Reducing a pair to its difference discards information, and it is worth
-being explicit about which. Under the trivariate-reduction view — the
-two counts share an unobserved latent component, plus a private
-component each — the shared component **cancels** in $`d`$. So $`d`$
-alone identifies neither the pair’s overall level nor the correlation
-between the two sources; only the disagreement survives.
+Reducing a pair to its difference discards the pair’s overall level and
+the correlation between its two sources. Under the trivariate-reduction
+view — the two counts share an unobserved latent component, plus a
+private component each — the shared component **cancels** in $`d`$. So
+$`d`$ alone identifies neither the level nor the correlation; only the
+disagreement survives.
 
-That is the right trade when the disagreement *is* the question, and it
-is the only option when the response must be truncated, since
+Discarding the level and the correlation is the right trade when the
+disagreement *is* the question. Modelling the difference is also the
+only option when the response must be truncated, since
 [`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html)
-needs a univariate response. Where the level and the congruence matter
+takes a univariate response. Where the level and the congruence matter
 too, model the pair jointly instead: the companion package
 [`bicountbrms`](https://github.com/anhsmith/bicountbrms) supplies
 bivariate Poisson and bivariate negative-binomial families that retain
-all three, and admit rows on which only one of the two counts was
-observed. The two are connected: for the bivariate Poisson, the induced
-difference $`y_1 - y_2`$ is exactly Skellam-distributed, so `bipois()`
-contains
-[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
-as its difference model.
+the level, the correlation and the disagreement together, and admit rows
+on which only one of the two counts was observed. The two packages are
+connected: for the bivariate Poisson, the induced difference
+$`y_1 - y_2`$ is exactly Skellam-distributed, so the difference model
+implied by `bipois()` is
+[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md).
 
-One thing not to do in either case: regressing the difference on one of
-the two counts places that count on both sides of the equation, and the
-fitted slope is biased towards $`-1`$ by shared sampling error alone
-(Bland and Altman 1986).
+One thing not to do, whether you model the difference or the pair:
+regressing the difference on one of the two counts places that count on
+both sides of the equation. The fitted slope is then biased towards
+$`-1`$ by shared sampling error alone (Bland and Altman 1986).
 
 ## Difference families
 
@@ -101,8 +102,9 @@ package samples on $`(\mu,\sigma)`$ rather than $`(\theta_1,\theta_2)`$:
 
 ### Discrete Laplace and discrete normal
 
-Both are obtained by discretising a continuous distribution $`F`$ onto
-the integers by **CDF differencing**,
+The discrete Laplace and the discrete normal are both obtained by
+discretising a continuous distribution $`F`$ onto the integers by **CDF
+differencing**,
 
 ``` math
 P(Z = z) = F\!\left(z + \tfrac12\right) - F\!\left(z - \tfrac12\right),
@@ -120,8 +122,7 @@ Unlike
 and
 [`dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md)
 impose **no** coupling between $`\mu`$ and $`\sigma`$ — they are free,
-independent parameters. That contrast is deliberate and is the reason to
-have all three: fitting
+independent parameters. That contrast is deliberate. Fitting
 [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
 (bias and spread structurally coupled) against
 [`dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md)
@@ -183,15 +184,15 @@ likelihood’s normalising constant, including a row-varying bound. No
 wiring beyond adding the stanvar is needed.
 
 For
-[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)/[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)/[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md),
 the exact log-CCDF is an iterative tail-sum over the Bessel-function
 PMF. Above a configurable `normal_approx_threshold` (default `100`, on
 the underlying $`\mu_{\text{skellam}}`$ scale — $`\sigma^2/2`$ for
 [`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md),
 $`(\theta_1+\theta_2)/2`$ for
 [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md))
-the exact sum is replaced by a normal approximation. This guards two
-confirmed failure modes that occur when HMC warmup pushes the
+the exact sum is replaced by a normal approximation. This guards against
+two confirmed failure modes that occur when HMC warmup pushes the
 (log-linked, hence unbounded) spread to an extreme: a crash from a
 huge-order Bessel evaluation, and a slower blow-up in cost/memory when
 many rows hit the exact loop inside one deep NUTS tree. See
@@ -237,8 +238,9 @@ excess-spread parameter is spelled `sigmaexcess`.
 | `sigmaexcess` | $`\sigma_{\text{excess}}`$ | [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)’s free spread, with $`\sigma^2 = \lvert\mu\rvert + \sigma_{\text{excess}}^2`$ |
 | — | $`\theta_1`$, $`\theta_2`$ | the two Poisson rates a Skellam difference is built from |
 
-Source 1 is whichever count you subtract from; the labelling carries no
-further meaning.
+Source 1 is whichever count you subtract from. Which of the two counts
+takes that label is arbitrary, and nothing else in the package depends
+on it.
 
 ## Installation
 
@@ -253,13 +255,14 @@ Stan and a C++ toolchain are required. On Windows, install
 Works with either rstan or cmdstanr as the brms backend.
 
 **Package history.** These families were released as `skellambrms`
-(0.1.0–0.5.0). At 0.6.0 the package was renamed `pairedcountbrms` and
-grew a second, unrelated suite: families that model the count *pair*
-jointly rather than its difference. The two shared no code, and after
-`pairedcountbrms` 0.8.0 they were separated again. The difference
-families return here as `skellambrms` 0.6.0, under the name they were
-first released with; the joint families continue as
-[`bicountbrms`](https://github.com/anhsmith/bicountbrms) 0.9.0.
+(0.1.0–0.5.0). At 0.6.0 the package was renamed `pairedcountbrms`, and a
+second, unrelated suite was added to it: families that model the count
+*pair* jointly rather than its difference. The two suites shared no
+code. After `pairedcountbrms` 0.8.0, they were separated again: the
+difference families return here as `skellambrms` 0.6.0, under the name
+they were first released with, and the joint families continue as
+[`bicountbrms`](https://github.com/anhsmith/bicountbrms), which was
+0.9.0 at the split.
 
 No family, dpar or Stan function name in *this* package changed in any
 of it, so no stored fit needs refitting — brms resolves a fit’s
@@ -268,8 +271,9 @@ the attached search path at call time. The only source change is
 [`library(pairedcountbrms)`](https://rdrr.io/r/base/library.html) →
 [`library(skellambrms)`](https://github.com/anhsmith/skellambrms). (One
 joint family was renamed on the other side of the split,
-`binegbin_joint` → `binegbin_cens`; see `bicountbrms`’s `NEWS.md` if you
-used it.)
+`binegbin_joint` → `binegbin_cens`, and `bicountbrms` 0.10.0 then
+removed the `_cens` names outright, with no deprecation layer; see
+`bicountbrms`’s `NEWS.md` if you hold fits under either name.)
 
 Because this repository was recreated at the old name,
 `anhsmith/skellambrms` now serves this package directly rather than
@@ -308,10 +312,10 @@ bounds correctly when called this way.
 is unaffected and works for truncated fits of every family.
 
 **The pair’s level and correlation are not recoverable.** By
-construction — see [When to model the
-difference](#when-to-model-the-difference-and-when-not-to). This is not
-a defect of the implementation but the definition of what a difference
-model is.
+construction — see [Information discarded by reducing a pair to its
+difference](#information-discarded-by-reducing-a-pair-to-its-difference).
+This is not a defect of the implementation but the definition of what a
+difference model is.
 
 ## Testing
 
@@ -381,8 +385,8 @@ order of magnitude in cost:
 
 Trigger `check-stan` by hand from the repository’s Actions tab whenever
 you want it. GitHub disables scheduled workflows after 60 days without a
-commit, so if this package goes quiet the weekly run stops; the manual
-trigger is the fallback.
+commit to the repository, so the weekly run stops once 60 days pass with
+nothing pushed; the manual trigger is the fallback.
 
 ## Function reference
 

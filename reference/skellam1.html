@@ -7,7 +7,7 @@ is always zero. Internally, mu_skellam = sigma^2 / 2 is derived as a
 transformed parameter and fed to the underlying Bessel-function PMF,
 which is otherwise unchanged.
 Use in a brm() call as:
-  brm(y ~ ..., family = skellam1(), stanvars = skellam1_stanvars(), data = ...)'><meta property="og:description" content='Returns a brms custom family for the symmetric Skellam distribution,
+brm(y ~ ..., family = skellam1(), stanvars = skellam1_stanvars(), data = ...)'><meta property="og:description" content='Returns a brms custom family for the symmetric Skellam distribution,
 Skellam(mu_skellam, mu_skellam) — the distribution of the difference of
 two independent Poisson(mu_skellam) random variables. The single
 parameter is sigma (link = "log"), the SD of that difference; the mean
@@ -15,7 +15,7 @@ is always zero. Internally, mu_skellam = sigma^2 / 2 is derived as a
 transformed parameter and fed to the underlying Bessel-function PMF,
 which is otherwise unchanged.
 Use in a brm() call as:
-  brm(y ~ ..., family = skellam1(), stanvars = skellam1_stanvars(), data = ...)'><meta property="og:image" content="https://anhsmith.github.io/skellambrms/logo.svg"></head><body>
+brm(y ~ ..., family = skellam1(), stanvars = skellam1_stanvars(), data = ...)'><meta property="og:image" content="https://anhsmith.github.io/skellambrms/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -57,7 +57,7 @@ is always zero. Internally, mu_skellam = sigma^2 / 2 is derived as a
 transformed parameter and fed to the underlying Bessel-function PMF,
 which is otherwise unchanged.</p>
 <p>Use in a brm() call as:
-  brm(y ~ ..., family = skellam1(), stanvars = skellam1_stanvars(), data = ...)</p>
+brm(y ~ ..., family = skellam1(), stanvars = skellam1_stanvars(), data = ...)</p>
     </div>
 
     <div class="section level2">
@@ -75,7 +75,15 @@ which is otherwise unchanged.</p>
 
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A brms custom_family object.</p>
+    <p><code>skellam1()</code> returns a brms <code>custom_family</code> object. <code>skellam1_stanvars()</code>
+returns a <code>stanvars</code> object holding the Stan code for <code>skellam1_lpmf</code>.
+<code>log_lik_skellam1()</code> returns a numeric vector of log-densities, one per
+posterior draw, for observation <code>i</code>. <code>posterior_predict_skellam1()</code>
+returns a vector of simulated differences, one per posterior draw, for
+observation <code>i</code>, drawn subject to that row's <code><a href="https://paulbuerkner.com/brms/reference/addition-terms.html" class="external-link">resp_trunc()</a></code> bounds where
+it has any. <code>posterior_epred_skellam1()</code> returns a draws x observations
+matrix of means, taken over the truncated distribution on any row that is
+bounded.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -83,29 +91,28 @@ which is otherwise unchanged.</p>
 (link = "log"); it now samples on sigma instead, for a common
 (mean, SD-scale) convention shared with skellam2(), dlaplace1(), and
 dlaplace2(). Since sigma = sqrt(2 * mu_skellam), a prior previously
-stated on log(mu_skellam) — e.g. normal(1, 1.5) — translates as:
-  log(sigma) = 0.5 * log(2) + 0.5 * log(mu_skellam)
+written on log(mu_skellam) — e.g. normal(1, 1.5) — translates as:
+log(sigma) = 0.5 * log(2) + 0.5 * log(mu_skellam)
 so an intercept of 1 on the old log(mu_skellam) scale corresponds to
-an intercept of 0.5*log(2) + 0.5*1 ≈ 0.847 on the new log(sigma) scale,
+an intercept of <code>0.5*log(2) + 0.5*1</code> ≈ 0.847 on the new log(sigma) scale,
 and the old prior's SD of 1.5 becomes 0.75 on the new scale (a linear
 transform of a normal is normal). This is a scale correspondence only —
-slope-coefficient interpretations from the old parameterisation are
-NOT carried forward; any offset-vs-free-slope diagnostic should be
+slope-coefficient interpretations from the old parameterisation do
+NOT transfer; any offset-vs-free-slope diagnostic should be
 redone fresh against this sigma-scale parameterisation.</p>
-<p>**Naming note.** `brms::custom_family()` hard-requires one `dpars`
-entry to be literally named `"mu"` (`stop2("All families must have a
-'mu' parameter.")`, unconditional, no override) — every family built
+<p><strong>Naming note.</strong> <code><a href="https://paulbuerkner.com/brms/reference/custom_family.html" class="external-link">brms::custom_family()</a></code> hard-requires one <code>dpars</code>
+entry to be literally named <code>"mu"</code> (<code>stop2("All families must have a 'mu' parameter.")</code>, unconditional, no override) — every family built
 on it, including this one, must comply regardless of what that
 parameter actually represents. For skellam1, the brms/Stan-level dpar
-named `mu` IS sigma (the SD of the difference, log-linked); it is NOT
+named <code>mu</code> IS sigma (the SD of the difference, log-linked); it is NOT
 the distribution's mean, which is structurally zero throughout. This
 is a forced naming collision with brms's API, not a reversion to the
-pre-reparameterisation behaviour: internally, `mu_skellam = mu^2 / 2`
+pre-reparameterisation behaviour: internally, <code>mu_skellam = mu^2 / 2</code>
 is still derived from it before reaching the Bessel-function PMF,
 exactly as documented above for "sigma". All R-side helper functions
-below immediately rebind this dpar to a variable called `sigma` so
-that no code in this package, other than the literal `dpars`/
-`get_dpar()` calls forced by brms, ever refers to it as `mu`.</p>
+below immediately rebind this dpar to a variable called <code>sigma</code> so
+that no code in this package, other than the literal <code>dpars</code>/
+<code><a href="https://paulbuerkner.com/brms/reference/get_dpar.html" class="external-link">get_dpar()</a></code> calls forced by brms, ever refers to it as <code>mu</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
