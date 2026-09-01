@@ -137,8 +137,8 @@ heavy-tailed one.
 
 Every family follows the same pattern: pass `family = <family>()` and
 `stanvars = <family>_stanvars()` to
-[`brm()`](https://paulbuerkner.com/brms/reference/brm.html); add
-`<family>_lccdf_stanvars()` (combined with `+`) to enable truncation.
+[`brm()`](https://paulbuerkner.com/brms/reference/brm.html). Nothing
+further is needed for an untruncated fit.
 
 ``` r
 
@@ -147,15 +147,31 @@ library(skellambrms)
 
 # skellam1(): mean fixed at 0 -- do the two sources agree on average?
 fit1 <- brm(
-  bf(d | trunc(lb = neg_bound) ~ 1 + (1 | group)),
+  bf(d ~ 1 + (1 | group)),
   data     = dat,
   family   = skellam1(),
-  stanvars = skellam1_stanvars() + skellam1_lccdf_stanvars(),
+  stanvars = skellam1_stanvars(),
   chains   = 4
 )
 
 # skellam2(): free mean -- how large, and how uncertain, is the disagreement?
 fit2 <- brm(
+  bf(d ~ 1 + x, sigmaexcess ~ 1),
+  data     = dat,
+  family   = skellam2(),
+  stanvars = skellam2_stanvars(),
+  chains   = 4
+)
+```
+
+Truncating takes two additions: a
+[`trunc()`](https://rdrr.io/r/base/Round.html) term in the formula, and
+the family’s `_lccdf_stanvars()` combined into the stanvars with `+`.
+Nothing else about the call changes.
+
+``` r
+
+fit3 <- brm(
   bf(d | trunc(lb = neg_bound) ~ 1 + x, sigmaexcess ~ 1),
   data     = dat,
   family   = skellam2(),
@@ -164,14 +180,16 @@ fit2 <- brm(
 )
 ```
 
+`neg_bound` is a column giving a (possibly row-varying) lower truncation
+bound — e.g. `-y_2`, if $`d`$ could not have fallen more than $`y_2`$
+below zero for that row.
+
 `dlaplace1/2()` and `dnorm1/2()` are drop-in replacements with the same
 call shape (their free-scale dpar is `sigma`,
-e.g. `bf(d ~ 1 + x, sigma ~ 1)`). `neg_bound` is a column giving a
-(possibly row-varying) lower truncation bound — e.g. `-y_2`, if $`d`$
-could not have fallen more than $`y_2`$ below zero for that row. All
-families accept arbitrary `brms` formula syntax: random effects, and
-non-linear or covariate-dependent predictors on the spread dpar (and,
-for the free-mean families, on `mu`).
+e.g. `bf(d ~ 1 + x, sigma ~ 1)`). All families accept arbitrary `brms`
+formula syntax: random effects, and non-linear or covariate-dependent
+predictors on the spread dpar (and, for the free-mean families, on
+`mu`).
 
 ### Truncation
 
