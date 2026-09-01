@@ -8,7 +8,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/anhsmith/skellambrms/blob/master/inst/CITATION)
+[`inst/CITATION`](https://github.com/anhsmith/skellambrms/blob/v0.6.0/inst/CITATION)
 
 Smith, A. N. H. (2026). skellambrms: Skellam and Discrete-Difference
 brms Custom Families for Count Differences. R package version 0.6.0.
