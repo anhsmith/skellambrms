@@ -2,6 +2,7 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/anhsmith/skellambrms/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/anhsmith/skellambrms/actions/workflows/R-CMD-check.yaml)
+[![DOI](https://zenodo.org/badge/1322796194.svg)](https://doi.org/10.5281/zenodo.22231870)
 <!-- badges: end -->
 
 Custom [brms](https://paulbuerkner.com/brms/) families (Bürkner 2017) for the
