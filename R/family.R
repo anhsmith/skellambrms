@@ -53,6 +53,9 @@
 #' it has any. `posterior_epred_skellam1()` returns a draws x observations
 #' matrix of means, taken over the truncated distribution on any row that is
 #' bounded.
+#' @seealso [skellam1_lccdf_stanvars()] for truncation; [skellam2()] for the
+#'   free-mean Skellam; [dlaplace1()] and [dnorm1()] for the same fixed
+#'   mean with heavier and lighter tails.
 #' @export
 skellam1 <- function() {
   brms::custom_family(
@@ -140,6 +143,8 @@ skellam1_stanvars <- function() {
 #' )
 #' }
 #'
+#' @seealso [skellam1()] for the family itself; [skellam2_lccdf_stanvars()] for
+#'   the free-mean counterpart.
 #' @export
 skellam1_lccdf_stanvars <- function(normal_approx_threshold = 100) {
   brms::stanvar(
@@ -275,6 +280,11 @@ posterior_epred_skellam1 <- function(prep) {
 #' it has any. `posterior_epred_skellam2()` returns a draws x observations
 #' matrix of means, taken over the truncated distribution on any row that is
 #' bounded.
+#' @seealso [skellam2_lccdf_stanvars()] for truncation; [skellam2_dpars()] to
+#'   recover `sigma`, `theta1` and `theta2` from a fit; [skellam1()] for
+#'   the fixed-mean family this one reduces to at `mu = 0`; [dlaplace2()]
+#'   and [dnorm2()] for free-mean families that leave mean and spread
+#'   uncoupled.
 #' @export
 skellam2 <- function() {
   brms::custom_family(
@@ -311,6 +321,8 @@ skellam2_stanvars <- function() {
 #'
 #' @return A `brms::stanvars` object defining the `skellam2_lccdf` Stan
 #'   function, for combining with `skellam2_stanvars()` via `+`.
+#' @seealso [skellam2()] for the family itself; [skellam1_lccdf_stanvars()] for
+#'   the normal-approximation threshold and how to choose it.
 #' @export
 skellam2_lccdf_stanvars <- function(normal_approx_threshold = 100) {
   brms::stanvar(
@@ -325,7 +337,7 @@ skellam2_lccdf_stanvars <- function(normal_approx_threshold = 100) {
 #' Returns `mu`, `sigma`, `sigma^2`, `theta1`, and `theta2` (each a
 #' draws x observations matrix) from a `skellam2()` `brmsfit`, computed
 #' in R via `brms::get_dpar()` rather than a Stan `generated quantities`
-#' block — see "Generated-quantities note" in `?skellam2` for why the
+#' block — see "Generated-quantities note" in [skellam2()] for why the
 #' latter isn't available for this family.
 #'
 #' @param fit A `brmsfit` fitted with `family = skellam2()`.
@@ -333,6 +345,8 @@ skellam2_lccdf_stanvars <- function(normal_approx_threshold = 100) {
 #'
 #' @return A named list of draws x observations matrices: `mu`, `sigma`,
 #'   `sigmasq`, `theta1`, `theta2`.
+#' @seealso [skellam2()] for the family and the algebra these quantities are
+#'   derived from.
 #' @export
 skellam2_dpars <- function(fit, newdata = NULL) {
   prep        <- brms::prepare_predictions(fit, newdata = newdata)
@@ -431,7 +445,7 @@ posterior_epred_skellam2 <- function(prep) {
 #' @details
 #' **Naming note.** Same forced naming as `skellam1()`: `brms::custom_family()`
 #' requires a dpar literally named `"mu"`; here it represents sigma (the
-#' SD), not a mean. See `?skellam1` Details for the full rationale.
+#' SD), not a mean. See [skellam1()] Details for the full rationale.
 #'
 #' **sigma-to-b conversion.** Stan's `double_exponential_lcdf` expects
 #' the continuous Laplace's own scale parameter, `b`. Var(Laplace(0,b)) = `2*b^2`, so SD
@@ -461,6 +475,9 @@ posterior_epred_skellam2 <- function(prep) {
 #' to that row's `resp_trunc()` bounds where it has any.
 #' `posterior_epred_dlaplace1()` returns a draws x observations matrix of
 #' means, taken over the truncated distribution on any row that is bounded.
+#' @seealso [dlaplace1_lccdf_stanvars()] for truncation; [dlaplace2()] for the
+#'   free-mean version; [skellam1()] and [dnorm1()] for the same fixed
+#'   mean under a Skellam and a lighter-tailed alternative.
 #' @export
 dlaplace1 <- function() {
   brms::custom_family(
@@ -491,6 +508,8 @@ dlaplace1_stanvars <- function() {
 #'
 #' @return A `brms::stanvars` object defining the `dlaplace1_lccdf` Stan
 #'   function, for combining with `dlaplace1_stanvars()` via `+`.
+#' @seealso [dlaplace1()] for the family itself; [skellam1_lccdf_stanvars()] for
+#'   how `resp_trunc()` locates these functions by name.
 #' @export
 dlaplace1_lccdf_stanvars <- function() {
   brms::stanvar(block = "functions", scode = dlaplace1_lccdf_stan)
@@ -579,13 +598,13 @@ posterior_epred_dlaplace1 <- function(prep) {
 #' @details
 #' **No naming workaround needed.** Unlike `skellam1()`/`dlaplace1()`,
 #' `mu` here genuinely is the family's mean, so brms's "must have a `mu`
-#' parameter" requirement (see `?skellam1` Details) is satisfied
+#' parameter" requirement (see [skellam1()] Details) is satisfied
 #' directly — no forced reinterpretation.
 #'
 #' **No constraint coupling mu and sigma.** This is a genuine structural
 #' difference from `skellam2()`, which structurally requires `sigma >=
 #' |mu|` (the Skellam family's actual mean/variance relationship — see
-#' `?skellam2` Details). The discrete Laplace has no such relationship:
+#' [skellam2()] Details). The discrete Laplace has no such relationship:
 #' `mu` and `sigma` are free, independent parameters. Fitting
 #' `skellam2()` against `dlaplace2()` compares a model where bias and
 #' spread are structurally coupled against one where they are not. This
@@ -608,6 +627,9 @@ posterior_epred_dlaplace1 <- function(prep) {
 #' to that row's `resp_trunc()` bounds where it has any.
 #' `posterior_epred_dlaplace2()` returns a draws x observations matrix of
 #' means, taken over the truncated distribution on any row that is bounded.
+#' @seealso [dlaplace2_lccdf_stanvars()] for truncation; [dlaplace1()] for the
+#'   fixed-mean version; [skellam2()] for the coupled comparison;
+#'   [dnorm2()] for the light-tailed alternative.
 #' @export
 dlaplace2 <- function() {
   brms::custom_family(
@@ -637,6 +659,8 @@ dlaplace2_stanvars <- function() {
 #'
 #' @return A `brms::stanvars` object defining the `dlaplace2_lccdf` Stan
 #'   function, for combining with `dlaplace2_stanvars()` via `+`.
+#' @seealso [dlaplace2()] for the family itself; [dlaplace1_lccdf_stanvars()] for
+#'   the fixed-mean version.
 #' @export
 dlaplace2_lccdf_stanvars <- function() {
   brms::stanvar(block = "functions", scode = dlaplace2_lccdf_stan)
@@ -718,7 +742,7 @@ posterior_epred_dlaplace2 <- function(prep) {
 #' @details
 #' **Naming note.** Same forced naming as `skellam1()`/`dlaplace1()`:
 #' `brms::custom_family()` requires a dpar literally named `"mu"`; here
-#' it represents sigma (the SD), not a mean. See `?skellam1` Details for
+#' it represents sigma (the SD), not a mean. See [skellam1()] Details for
 #' the full rationale.
 #'
 #' **No scale conversion needed.** Unlike `dlaplace1()`, where Stan's
@@ -753,6 +777,9 @@ posterior_epred_dlaplace2 <- function(prep) {
 #' it has any. `posterior_epred_dnorm1()` returns a draws x observations
 #' matrix of means, taken over the truncated distribution on any row that is
 #' bounded.
+#' @seealso [dnorm1_lccdf_stanvars()] for truncation; [dnorm2()] for the
+#'   free-mean version; [skellam1()] and [dlaplace1()] for the same fixed
+#'   mean under a Skellam and a heavier-tailed alternative.
 #' @export
 dnorm1 <- function() {
   brms::custom_family(
@@ -784,6 +811,8 @@ dnorm1_stanvars <- function() {
 #'
 #' @return A `brms::stanvars` object defining the `dnorm1_lccdf` Stan
 #'   function, for combining with `dnorm1_stanvars()` via `+`.
+#' @seealso [dnorm1()] for the family itself; [skellam1_lccdf_stanvars()] for how
+#'   `resp_trunc()` locates these functions by name.
 #' @export
 dnorm1_lccdf_stanvars <- function() {
   brms::stanvar(block = "functions", scode = dnorm1_lccdf_stan)
@@ -873,12 +902,12 @@ posterior_epred_dnorm1 <- function(prep) {
 #' @details
 #' **No naming workaround needed.** Unlike `skellam1()`/`dlaplace1()`/
 #' `dnorm1()`, `mu` here genuinely is the family's mean, so brms's "must
-#' have a `mu` parameter" requirement (see `?skellam1` Details) is
+#' have a `mu` parameter" requirement (see [skellam1()] Details) is
 #' satisfied directly -- no forced reinterpretation.
 #'
 #' **No constraint coupling mu and sigma.** Same structural contrast with
-#' `skellam2()` already documented for `dlaplace2()` (see `?dlaplace2`
-#' Details): `mu` and `sigma` are free, independent parameters here, by
+#' `skellam2()` already documented for [dlaplace2()] (see its Details):
+#' `mu` and `sigma` are free, independent parameters here, by
 #' design. Fitting `skellam2()` against `dlaplace2()` and `dnorm2()`
 #' compares a model where bias and spread are structurally coupled
 #' against ones where they are not; this package supplies all three
@@ -898,6 +927,9 @@ posterior_epred_dnorm1 <- function(prep) {
 #' it has any. `posterior_epred_dnorm2()` returns a draws x observations
 #' matrix of means, taken over the truncated distribution on any row that is
 #' bounded.
+#' @seealso [dnorm2_lccdf_stanvars()] for truncation; [dnorm1()] for the
+#'   fixed-mean version; [skellam2()] for the coupled comparison;
+#'   [dlaplace2()] for the heavy-tailed alternative.
 #' @export
 dnorm2 <- function() {
   brms::custom_family(
@@ -927,6 +959,8 @@ dnorm2_stanvars <- function() {
 #'
 #' @return A `brms::stanvars` object defining the `dnorm2_lccdf` Stan
 #'   function, for combining with `dnorm2_stanvars()` via `+`.
+#' @seealso [dnorm2()] for the family itself; [dnorm1_lccdf_stanvars()] for the
+#'   fixed-mean version.
 #' @export
 dnorm2_lccdf_stanvars <- function() {
   brms::stanvar(block = "functions", scode = dnorm2_lccdf_stan)

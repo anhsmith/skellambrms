@@ -18,3 +18,7 @@ complementary CDF of the discrete Laplace(mu, sigma) family --
 convention, and no-threshold-argument rationale as
 \code{dlaplace1_lccdf_stanvars()}.
 }
+\seealso{
+\code{\link[=dlaplace2]{dlaplace2()}} for the family itself; \code{\link[=dlaplace1_lccdf_stanvars]{dlaplace1_lccdf_stanvars()}} for
+the fixed-mean version.
+}

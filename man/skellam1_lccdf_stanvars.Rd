@@ -78,3 +78,7 @@ brm(
 }
 
 }
+\seealso{
+\code{\link[=skellam1]{skellam1()}} for the family itself; \code{\link[=skellam2_lccdf_stanvars]{skellam2_lccdf_stanvars()}} for
+the free-mean counterpart.
+}

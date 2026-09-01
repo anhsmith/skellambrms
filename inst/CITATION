@@ -1,5 +1,10 @@
 # Version and year are taken from DESCRIPTION so there is one source of truth;
 # bumping Version/Date is enough to keep citation() current.
+#
+# DOI. Add the Zenodo DOI to `doi` and to `textVersion` below once 0.6.0 has
+# been archived; the DOI does not exist until the release is deposited. Until
+# then this entry cites the repository, which is not a persistent identifier --
+# a manuscript should wait for the DOI rather than cite the URL.
 year <- if (!is.null(meta$Date)) {
   format(as.Date(meta$Date), "%Y")
 } else {
@@ -18,11 +23,17 @@ citHeader(
 bibentry(
   bibtype  = "Manual",
   title    = "{skellambrms}: Skellam and Discrete-Difference {brms} Custom Families for Count Differences",
-  author   = person("Adam N. H.", "Smith"),
+  author   = person(
+    "Adam N. H.", "Smith",
+    comment = c(ORCID = "0000-0003-0059-6206")
+  ),
   year     = year,
   note     = paste("R package version", version),
   url      = "https://github.com/anhsmith/skellambrms",
+  # doi    = "10.5281/zenodo.NNNNNNN",
   header   = "Package citation:",
+  # When `doi` above is uncommented, append the same DOI here, so that the
+  # plain-text and BibTeX forms cite one identifier rather than two.
   textVersion = paste0(
     "Smith, A. N. H. (", year, "). skellambrms: Skellam and ",
     "Discrete-Difference brms Custom Families for Count Differences. ",

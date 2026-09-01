@@ -26,3 +26,7 @@ checked against \code{mu_skellam = (theta1 + theta2) / 2}, the direct
 generalisation of skellam1's threshold quantity to the asymmetric
 case — see skellam2_lccdf_stan() in stanfunctions.R).
 }
+\seealso{
+\code{\link[=skellam2]{skellam2()}} for the family itself; \code{\link[=skellam1_lccdf_stanvars]{skellam1_lccdf_stanvars()}} for
+the normal-approximation threshold and how to choose it.
+}

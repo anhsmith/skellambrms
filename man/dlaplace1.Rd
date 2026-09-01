@@ -45,7 +45,7 @@ brm(y ~ ..., family = dlaplace1(), stanvars = dlaplace1_stanvars(), data = ...)
 \details{
 \strong{Naming note.} Same forced naming as \code{skellam1()}: \code{brms::custom_family()}
 requires a dpar literally named \code{"mu"}; here it represents sigma (the
-SD), not a mean. See \code{?skellam1} Details for the full rationale.
+SD), not a mean. See \code{\link[=skellam1]{skellam1()}} Details for the full rationale.
 
 \strong{sigma-to-b conversion.} Stan's \code{double_exponential_lcdf} expects
 the continuous Laplace's own scale parameter, \code{b}. Var(Laplace(0,b)) = \code{2*b^2}, so SD
@@ -63,5 +63,10 @@ match this family's CDF-differenced PMF (e.g. at \code{b=3},
 tests validate against a hand-derived CDF-difference R reference
 instead — the documented fallback for when a package reference isn't
 applicable.
+}
+\seealso{
+\code{\link[=dlaplace1_lccdf_stanvars]{dlaplace1_lccdf_stanvars()}} for truncation; \code{\link[=dlaplace2]{dlaplace2()}} for the
+free-mean version; \code{\link[=skellam1]{skellam1()}} and \code{\link[=dnorm1]{dnorm1()}} for the same fixed
+mean under a Skellam and a lighter-tailed alternative.
 }
 \keyword{internal}

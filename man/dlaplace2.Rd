@@ -42,12 +42,12 @@ brm(y ~ ..., family = dlaplace2(), stanvars = dlaplace2_stanvars(), data = ...)
 \details{
 \strong{No naming workaround needed.} Unlike \code{skellam1()}/\code{dlaplace1()},
 \code{mu} here genuinely is the family's mean, so brms's "must have a \code{mu}
-parameter" requirement (see \code{?skellam1} Details) is satisfied
+parameter" requirement (see \code{\link[=skellam1]{skellam1()}} Details) is satisfied
 directly — no forced reinterpretation.
 
 \strong{No constraint coupling mu and sigma.} This is a genuine structural
 difference from \code{skellam2()}, which structurally requires \verb{sigma >= |mu|} (the Skellam family's actual mean/variance relationship — see
-\code{?skellam2} Details). The discrete Laplace has no such relationship:
+\code{\link[=skellam2]{skellam2()}} Details). The discrete Laplace has no such relationship:
 \code{mu} and \code{sigma} are free, independent parameters. Fitting
 \code{skellam2()} against \code{dlaplace2()} compares a model where bias and
 spread are structurally coupled against one where they are not. This
@@ -58,5 +58,10 @@ artificial coupling here.
 \code{double_exponential_lcdf}'s own location argument (it takes location
 and scale directly, like \code{normal_lcdf}), so no manual shift of \code{z} is
 needed in the Stan code.
+}
+\seealso{
+\code{\link[=dlaplace2_lccdf_stanvars]{dlaplace2_lccdf_stanvars()}} for truncation; \code{\link[=dlaplace1]{dlaplace1()}} for the
+fixed-mean version; \code{\link[=skellam2]{skellam2()}} for the coupled comparison;
+\code{\link[=dnorm2]{dnorm2()}} for the light-tailed alternative.
 }
 \keyword{internal}

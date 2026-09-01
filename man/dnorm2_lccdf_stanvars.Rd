@@ -18,3 +18,7 @@ complementary CDF of the discrete Normal(mu, sigma) family --
 convention, and no-threshold-argument rationale as
 \code{dnorm1_lccdf_stanvars()}.
 }
+\seealso{
+\code{\link[=dnorm2]{dnorm2()}} for the family itself; \code{\link[=dnorm1_lccdf_stanvars]{dnorm1_lccdf_stanvars()}} for the
+fixed-mean version.
+}

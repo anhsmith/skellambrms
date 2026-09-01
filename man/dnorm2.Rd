@@ -43,12 +43,12 @@ brm(y ~ ..., family = dnorm2(), stanvars = dnorm2_stanvars(), data = ...)
 \details{
 \strong{No naming workaround needed.} Unlike \code{skellam1()}/\code{dlaplace1()}/
 \code{dnorm1()}, \code{mu} here genuinely is the family's mean, so brms's "must
-have a \code{mu} parameter" requirement (see \code{?skellam1} Details) is
+have a \code{mu} parameter" requirement (see \code{\link[=skellam1]{skellam1()}} Details) is
 satisfied directly -- no forced reinterpretation.
 
 \strong{No constraint coupling mu and sigma.} Same structural contrast with
-\code{skellam2()} already documented for \code{dlaplace2()} (see \code{?dlaplace2}
-Details): \code{mu} and \code{sigma} are free, independent parameters here, by
+\code{skellam2()} already documented for \code{\link[=dlaplace2]{dlaplace2()}} (see its Details):
+\code{mu} and \code{sigma} are free, independent parameters here, by
 design. Fitting \code{skellam2()} against \code{dlaplace2()} and \code{dnorm2()}
 compares a model where bias and spread are structurally coupled
 against ones where they are not; this package supplies all three
@@ -57,5 +57,10 @@ families for that comparison.
 \strong{Cancellation in the PMF.} Same issue and fix as \code{dnorm1()} (see its
 Details), generalised to branch on whether \code{z} is on the far side of
 \code{mu} rather than of 0.
+}
+\seealso{
+\code{\link[=dnorm2_lccdf_stanvars]{dnorm2_lccdf_stanvars()}} for truncation; \code{\link[=dnorm1]{dnorm1()}} for the
+fixed-mean version; \code{\link[=skellam2]{skellam2()}} for the coupled comparison;
+\code{\link[=dlaplace2]{dlaplace2()}} for the heavy-tailed alternative.
 }
 \keyword{internal}

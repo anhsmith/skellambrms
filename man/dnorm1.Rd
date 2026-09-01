@@ -45,7 +45,7 @@ brm(y ~ ..., family = dnorm1(), stanvars = dnorm1_stanvars(), data = ...)
 \details{
 \strong{Naming note.} Same forced naming as \code{skellam1()}/\code{dlaplace1()}:
 \code{brms::custom_family()} requires a dpar literally named \code{"mu"}; here
-it represents sigma (the SD), not a mean. See \code{?skellam1} Details for
+it represents sigma (the SD), not a mean. See \code{\link[=skellam1]{skellam1()}} Details for
 the full rationale.
 
 \strong{No scale conversion needed.} Unlike \code{dlaplace1()}, where Stan's
@@ -69,5 +69,10 @@ R-side \code{log_lik_dnorm1}) by differencing two \emph{survival} values
 \code{dlaplace1_lccdf}/\code{dlaplace2_lccdf} already use, applied here to the
 PMF rather than the CCDF, since CDF differencing is itself the
 operation that creates the cancellation risk in the first place.
+}
+\seealso{
+\code{\link[=dnorm1_lccdf_stanvars]{dnorm1_lccdf_stanvars()}} for truncation; \code{\link[=dnorm2]{dnorm2()}} for the
+free-mean version; \code{\link[=skellam1]{skellam1()}} and \code{\link[=dlaplace1]{dlaplace1()}} for the same fixed
+mean under a Skellam and a heavier-tailed alternative.
 }
 \keyword{internal}

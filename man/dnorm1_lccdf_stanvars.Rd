@@ -20,3 +20,7 @@ exposes as a built-in for the normal), rather than a
 \code{log1m_exp(lcdf(...))} composition -- no threshold argument and no
 large-argument failure mode to guard against.
 }
+\seealso{
+\code{\link[=dnorm1]{dnorm1()}} for the family itself; \code{\link[=skellam1_lccdf_stanvars]{skellam1_lccdf_stanvars()}} for how
+\code{resp_trunc()} locates these functions by name.
+}

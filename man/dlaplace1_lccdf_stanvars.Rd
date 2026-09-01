@@ -19,3 +19,7 @@ families' lccdf stanvars, this takes no threshold argument: the
 closed-form \code{log1m_exp(double_exponential_lcdf(...))} has no
 large-argument failure mode to guard against.
 }
+\seealso{
+\code{\link[=dlaplace1]{dlaplace1()}} for the family itself; \code{\link[=skellam1_lccdf_stanvars]{skellam1_lccdf_stanvars()}} for
+how \code{resp_trunc()} locates these functions by name.
+}

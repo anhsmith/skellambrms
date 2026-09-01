@@ -19,6 +19,10 @@ A named list of draws x observations matrices: \code{mu}, \code{sigma},
 Returns \code{mu}, \code{sigma}, \code{sigma^2}, \code{theta1}, and \code{theta2} (each a
 draws x observations matrix) from a \code{skellam2()} \code{brmsfit}, computed
 in R via \code{brms::get_dpar()} rather than a Stan \verb{generated quantities}
-block — see "Generated-quantities note" in \code{?skellam2} for why the
+block — see "Generated-quantities note" in \code{\link[=skellam2]{skellam2()}} for why the
 latter isn't available for this family.
+}
+\seealso{
+\code{\link[=skellam2]{skellam2()}} for the family and the algebra these quantities are
+derived from.
 }

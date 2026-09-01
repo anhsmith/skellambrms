@@ -84,4 +84,11 @@ formulas, breaking silently for anything with random effects or
 splines. \code{skellam2_dpars()} (below) reports the same five quantities
 from R instead, via \code{brms::get_dpar()} — works for any formula.
 }
+\seealso{
+\code{\link[=skellam2_lccdf_stanvars]{skellam2_lccdf_stanvars()}} for truncation; \code{\link[=skellam2_dpars]{skellam2_dpars()}} to
+recover \code{sigma}, \code{theta1} and \code{theta2} from a fit; \code{\link[=skellam1]{skellam1()}} for
+the fixed-mean family this one reduces to at \code{mu = 0}; \code{\link[=dlaplace2]{dlaplace2()}}
+and \code{\link[=dnorm2]{dnorm2()}} for free-mean families that leave mean and spread
+uncoupled.
+}
 \keyword{internal}

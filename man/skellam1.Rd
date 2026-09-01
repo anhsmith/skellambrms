@@ -70,4 +70,9 @@ below immediately rebind this dpar to a variable called \code{sigma} so
 that no code in this package, other than the literal \code{dpars}/
 \code{get_dpar()} calls forced by brms, ever refers to it as \code{mu}.
 }
+\seealso{
+\code{\link[=skellam1_lccdf_stanvars]{skellam1_lccdf_stanvars()}} for truncation; \code{\link[=skellam2]{skellam2()}} for the
+free-mean Skellam; \code{\link[=dlaplace1]{dlaplace1()}} and \code{\link[=dnorm1]{dnorm1()}} for the same fixed
+mean with heavier and lighter tails.
+}
 \keyword{internal}
