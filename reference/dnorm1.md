@@ -47,7 +47,7 @@ any row that is bounded.
 [`brms::custom_family()`](https://paulbuerkner.com/brms/reference/custom_family.html)
 requires a dpar literally named `"mu"`; here it represents sigma (the
 SD), not a mean. See
-[`?skellam1`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
+[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
 Details for the full rationale.
 
 **No scale conversion needed.** Unlike
@@ -74,3 +74,15 @@ exact-survival-form idea `dlaplace1_lccdf`/`dlaplace2_lccdf` already
 use, applied here to the PMF rather than the CCDF, since CDF
 differencing is itself the operation that creates the cancellation risk
 in the first place.
+
+## See also
+
+[`dnorm1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dnorm1_lccdf_stanvars.md)
+for truncation;
+[`dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md)
+for the free-mean version;
+[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
+and
+[`dlaplace1()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1.md)
+for the same fixed mean under a Skellam and a heavier-tailed
+alternative.

@@ -21,3 +21,10 @@ A
 object defining the `dlaplace2_lccdf` Stan function, for combining with
 [`dlaplace2_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
 via `+`.
+
+## See also
+
+[`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
+for the family itself;
+[`dlaplace1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1_lccdf_stanvars.md)
+for the fixed-mean version.

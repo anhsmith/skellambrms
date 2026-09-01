@@ -71,3 +71,14 @@ helper functions below immediately rebind this dpar to a variable called
 `sigma` so that no code in this package, other than the literal `dpars`/
 [`get_dpar()`](https://paulbuerkner.com/brms/reference/get_dpar.html)
 calls forced by brms, ever refers to it as `mu`.
+
+## See also
+
+[`skellam1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md)
+for truncation;
+[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+for the free-mean Skellam;
+[`dlaplace1()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1.md)
+and
+[`dnorm1()`](https://anhsmith.github.io/skellambrms/reference/dnorm1.md)
+for the same fixed mean with heavier and lighter tails.

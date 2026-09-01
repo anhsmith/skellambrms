@@ -92,7 +92,7 @@ bounded.</p>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><strong>Naming note.</strong> Same forced naming as <code><a href="skellam1.html">skellam1()</a></code>/<code><a href="dlaplace1.html">dlaplace1()</a></code>:
 <code><a href="https://paulbuerkner.com/brms/reference/custom_family.html" class="external-link">brms::custom_family()</a></code> requires a dpar literally named <code>"mu"</code>; here
-it represents sigma (the SD), not a mean. See <code><a href="skellam1.html">?skellam1</a></code> Details for
+it represents sigma (the SD), not a mean. See <code><a href="skellam1.html">skellam1()</a></code> Details for
 the full rationale.</p>
 <p><strong>No scale conversion needed.</strong> Unlike <code><a href="dlaplace1.html">dlaplace1()</a></code>, where Stan's
 <code>double_exponential_lcdf</code> expects the continuous Laplace's own scale
@@ -114,6 +114,12 @@ R-side <code>log_lik_dnorm1</code>) by differencing two <em>survival</em> values
 <code>dlaplace1_lccdf</code>/<code>dlaplace2_lccdf</code> already use, applied here to the
 PMF rather than the CCDF, since CDF differencing is itself the
 operation that creates the cancellation risk in the first place.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="dnorm1_lccdf_stanvars.html">dnorm1_lccdf_stanvars()</a></code> for truncation; <code><a href="dnorm2.html">dnorm2()</a></code> for the
+free-mean version; <code><a href="skellam1.html">skellam1()</a></code> and <code><a href="dlaplace1.html">dlaplace1()</a></code> for the same fixed
+mean under a Skellam and a heavier-tailed alternative.</p></div>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -83,11 +83,11 @@ means, taken over the truncated distribution on any row that is bounded.</p>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><strong>No naming workaround needed.</strong> Unlike <code><a href="skellam1.html">skellam1()</a></code>/<code><a href="dlaplace1.html">dlaplace1()</a></code>,
 <code>mu</code> here genuinely is the family's mean, so brms's "must have a <code>mu</code>
-parameter" requirement (see <code><a href="skellam1.html">?skellam1</a></code> Details) is satisfied
+parameter" requirement (see <code><a href="skellam1.html">skellam1()</a></code> Details) is satisfied
 directly — no forced reinterpretation.</p>
 <p><strong>No constraint coupling mu and sigma.</strong> This is a genuine structural
 difference from <code><a href="skellam2.html">skellam2()</a></code>, which structurally requires <code>sigma &gt;= |mu|</code> (the Skellam family's actual mean/variance relationship — see
-<code><a href="skellam2.html">?skellam2</a></code> Details). The discrete Laplace has no such relationship:
+<code><a href="skellam2.html">skellam2()</a></code> Details). The discrete Laplace has no such relationship:
 <code>mu</code> and <code>sigma</code> are free, independent parameters. Fitting
 <code><a href="skellam2.html">skellam2()</a></code> against <code>dlaplace2()</code> compares a model where bias and
 spread are structurally coupled against one where they are not. This
@@ -97,6 +97,12 @@ artificial coupling here.</p>
 <code>double_exponential_lcdf</code>'s own location argument (it takes location
 and scale directly, like <code>normal_lcdf</code>), so no manual shift of <code>z</code> is
 needed in the Stan code.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="dlaplace2_lccdf_stanvars.html">dlaplace2_lccdf_stanvars()</a></code> for truncation; <code><a href="dlaplace1.html">dlaplace1()</a></code> for the
+fixed-mean version; <code><a href="skellam2.html">skellam2()</a></code> for the coupled comparison;
+<code><a href="dnorm2.html">dnorm2()</a></code> for the light-tailed alternative.</p></div>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

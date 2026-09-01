@@ -44,7 +44,7 @@ any row that is bounded.
 [`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)/[`dlaplace1()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1.md),
 `mu` here genuinely is the family's mean, so brms's "must have a `mu`
 parameter" requirement (see
-[`?skellam1`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
+[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
 Details) is satisfied directly — no forced reinterpretation.
 
 **No constraint coupling mu and sigma.** This is a genuine structural
@@ -52,7 +52,7 @@ difference from
 [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md),
 which structurally requires `sigma >= |mu|` (the Skellam family's actual
 mean/variance relationship — see
-[`?skellam2`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
 Details). The discrete Laplace has no such relationship: `mu` and
 `sigma` are free, independent parameters. Fitting
 [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
@@ -67,3 +67,14 @@ coupling here.
 `double_exponential_lcdf`'s own location argument (it takes location and
 scale directly, like `normal_lcdf`), so no manual shift of `z` is needed
 in the Stan code.
+
+## See also
+
+[`dlaplace2_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2_lccdf_stanvars.md)
+for truncation;
+[`dlaplace1()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1.md)
+for the fixed-mean version;
+[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+for the coupled comparison;
+[`dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md)
+for the light-tailed alternative.

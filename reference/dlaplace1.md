@@ -47,7 +47,7 @@ any row that is bounded.
 [`brms::custom_family()`](https://paulbuerkner.com/brms/reference/custom_family.html)
 requires a dpar literally named `"mu"`; here it represents sigma (the
 SD), not a mean. See
-[`?skellam1`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
+[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
 Details for the full rationale.
 
 **sigma-to-b conversion.** Stan's `double_exponential_lcdf` expects the
@@ -66,3 +66,15 @@ family's CDF-differenced PMF (e.g. at `b=3`, `p=exp(-1/3)`:
 `P(0) = 0.1535` here vs `0.1651` there). This package's tests validate
 against a hand-derived CDF-difference R reference instead — the
 documented fallback for when a package reference isn't applicable.
+
+## See also
+
+[`dlaplace1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1_lccdf_stanvars.md)
+for truncation;
+[`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
+for the free-mean version;
+[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
+and
+[`dnorm1()`](https://anhsmith.github.io/skellambrms/reference/dnorm1.md)
+for the same fixed mean under a Skellam and a lighter-tailed
+alternative.

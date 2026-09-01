@@ -91,3 +91,16 @@ effects or splines.
 (below) reports the same five quantities from R instead, via
 [`brms::get_dpar()`](https://paulbuerkner.com/brms/reference/get_dpar.html)
 — works for any formula.
+
+## See also
+
+[`skellam2_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam2_lccdf_stanvars.md)
+for truncation;
+[`skellam2_dpars()`](https://anhsmith.github.io/skellambrms/reference/skellam2_dpars.md)
+to recover `sigma`, `theta1` and `theta2` from a fit;
+[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
+for the fixed-mean family this one reduces to at `mu = 0`;
+[`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
+and
+[`dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md)
+for free-mean families that leave mean and spread uncoupled.

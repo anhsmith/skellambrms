@@ -24,3 +24,12 @@ A
 object defining the `dnorm1_lccdf` Stan function, for combining with
 [`dnorm1_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dnorm1.md)
 via `+`.
+
+## See also
+
+[`dnorm1()`](https://anhsmith.github.io/skellambrms/reference/dnorm1.md)
+for the family itself;
+[`skellam1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md)
+for how
+[`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html)
+locates these functions by name.

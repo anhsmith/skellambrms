@@ -35,3 +35,10 @@ A
 object defining the `skellam2_lccdf` Stan function, for combining with
 [`skellam2_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
 via `+`.
+
+## See also
+
+[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+for the family itself;
+[`skellam1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md)
+for the normal-approximation threshold and how to choose it.

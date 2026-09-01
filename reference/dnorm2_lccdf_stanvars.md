@@ -20,3 +20,10 @@ A
 object defining the `dnorm2_lccdf` Stan function, for combining with
 [`dnorm2_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md)
 via `+`.
+
+## See also
+
+[`dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md)
+for the family itself;
+[`dnorm1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dnorm1_lccdf_stanvars.md)
+for the fixed-mean version.

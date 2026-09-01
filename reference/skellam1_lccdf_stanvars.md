@@ -75,6 +75,13 @@ too low pays for the normal approximation's bias more often than
 necessary; setting it too high re-exposes the crash/slow-blowup risk
 this exists to prevent.
 
+## See also
+
+[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
+for the family itself;
+[`skellam2_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam2_lccdf_stanvars.md)
+for the free-mean counterpart.
+
 ## Examples
 
 ``` r

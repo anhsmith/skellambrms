@@ -86,11 +86,11 @@ bounded.</p>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><strong>No naming workaround needed.</strong> Unlike <code><a href="skellam1.html">skellam1()</a></code>/<code><a href="dlaplace1.html">dlaplace1()</a></code>/
 <code><a href="dnorm1.html">dnorm1()</a></code>, <code>mu</code> here genuinely is the family's mean, so brms's "must
-have a <code>mu</code> parameter" requirement (see <code><a href="skellam1.html">?skellam1</a></code> Details) is
+have a <code>mu</code> parameter" requirement (see <code><a href="skellam1.html">skellam1()</a></code> Details) is
 satisfied directly – no forced reinterpretation.</p>
 <p><strong>No constraint coupling mu and sigma.</strong> Same structural contrast with
-<code><a href="skellam2.html">skellam2()</a></code> already documented for <code><a href="dlaplace2.html">dlaplace2()</a></code> (see <code><a href="dlaplace2.html">?dlaplace2</a></code>
-Details): <code>mu</code> and <code>sigma</code> are free, independent parameters here, by
+<code><a href="skellam2.html">skellam2()</a></code> already documented for <code><a href="dlaplace2.html">dlaplace2()</a></code> (see its Details):
+<code>mu</code> and <code>sigma</code> are free, independent parameters here, by
 design. Fitting <code><a href="skellam2.html">skellam2()</a></code> against <code><a href="dlaplace2.html">dlaplace2()</a></code> and <code>dnorm2()</code>
 compares a model where bias and spread are structurally coupled
 against ones where they are not; this package supplies all three
@@ -98,6 +98,12 @@ families for that comparison.</p>
 <p><strong>Cancellation in the PMF.</strong> Same issue and fix as <code><a href="dnorm1.html">dnorm1()</a></code> (see its
 Details), generalised to branch on whether <code>z</code> is on the far side of
 <code>mu</code> rather than of 0.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="dnorm2_lccdf_stanvars.html">dnorm2_lccdf_stanvars()</a></code> for truncation; <code><a href="dnorm1.html">dnorm1()</a></code> for the
+fixed-mean version; <code><a href="skellam2.html">skellam2()</a></code> for the coupled comparison;
+<code><a href="dlaplace2.html">dlaplace2()</a></code> for the heavy-tailed alternative.</p></div>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

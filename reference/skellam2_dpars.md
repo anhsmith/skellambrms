@@ -7,7 +7,7 @@ observations matrix) from a
 [`brms::get_dpar()`](https://paulbuerkner.com/brms/reference/get_dpar.html)
 rather than a Stan `generated quantities` block — see
 "Generated-quantities note" in
-[`?skellam2`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
 for why the latter isn't available for this family.
 
 ## Usage
@@ -31,3 +31,8 @@ skellam2_dpars(fit, newdata = NULL)
 
 A named list of draws x observations matrices: `mu`, `sigma`, `sigmasq`,
 `theta1`, `theta2`.
+
+## See also
+
+[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+for the family and the algebra these quantities are derived from.

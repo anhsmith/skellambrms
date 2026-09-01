@@ -23,3 +23,12 @@ A
 object defining the `dlaplace1_lccdf` Stan function, for combining with
 [`dlaplace1_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1.md)
 via `+`.
+
+## See also
+
+[`dlaplace1()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1.md)
+for the family itself;
+[`skellam1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md)
+for how
+[`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html)
+locates these functions by name.

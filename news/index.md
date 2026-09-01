@@ -9,8 +9,12 @@
   set that models the count *pair* jointly. They shared no code — not a
   helper, not a Stan block, not a dependency — and have been separated
   again. The joint families are now
-  [`bicountbrms`](https://github.com/anhsmith/bicountbrms), whose 0.9.0
-  is the matching half of this release.
+  [`bicountbrms`](https://github.com/anhsmith/bicountbrms). Its 0.9.0
+  was the matching half of this release, at the time of the split.
+  Install its current version rather than 0.9.0: `bicountbrms` 0.10.0
+  removed the `bipois_cens()`, `binegbin_cens()` and `binegbin_joint`
+  names that 0.9.0 defined, and supplies `bipois()`, `binegbin()` and a
+  `_partialobs()` constructor for each in their place.
 
   **No family, dpar or Stan function name changed**, so no fitted model
   needs refitting. brms resolves a fit’s `log_lik_*` /
@@ -32,6 +36,61 @@
   Skellam families, and following the redirect would now land them on a
   package that no longer has any. `pak::pak("anhsmith/skellambrms")`
   installs these families again, which is what it did originally.
+
+- **Roxygen markdown is enabled, which changes every help page.**
+  `DESCRIPTION` gained `Roxygen: list(markdown = TRUE)`, which this
+  package had never set, so roxygen had been passing markdown through to
+  Rd uninterpreted. Regenerating the 13 Rd files converted 502 literal
+  backticks into 251 code spans. Bold and italic markers that had been
+  printing as their own asterisks now render. The topics also gained
+  cross-references, of which there had been none: each family links to
+  its `_lccdf_stanvars()` companion and to the families it is meant to
+  be fitted against.
+
+  Markdown interpretation is retroactive, so every topic was rendered
+  with [`tools::Rd2txt()`](https://rdrr.io/r/tools/Rd2HTML.html) before
+  and after and diffed word by word. One expression had been altered
+  silently. In
+  [`?skellam1`](https://anhsmith.github.io/skellambrms/reference/skellam1.md),
+  the prior-translation intercept `0.5*log(2) + 0.5*1` was read as
+  emphasis between its two asterisks and rendered as `0.5log(2) + 0.51`,
+  dropping both multiplication signs; it is now a code span. Under
+  [`?skellam1_lccdf_stanvars`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md),
+  the two guarded failure modes had been running together into one
+  paragraph, and are now a list.
+
+- **Every documented function states what it returns.** The six family
+  topics document five functions each and had a single `\value{}`
+  describing the constructor alone. Each now gives the return value and
+  shape of `log_lik_*`, `posterior_predict_*` and `posterior_epred_*`
+  separately, as well as those of the constructor and its `_stanvars()`
+  companion. Two behaviours that were documented nowhere are stated
+  there: `posterior_predict_*` draws subject to a row’s
+  [`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html)
+  bounds, and `posterior_epred_*` takes its mean over the truncated
+  distribution on any row that is bounded. `Title:` and `Description:`
+  also quote `'brms'` and `'Stan'`, which is the convention CRAN applies
+  to software names.
+
+- **Metadata for archiving.** `LICENSE` and `LICENSE.md` named
+  “skellambrms authors”, the placeholder `usethis` writes, and now name
+  the copyright holder. A `.zenodo.json` records the creator, ORCID,
+  affiliation and licence for the Zenodo deposit, and is excluded from
+  the built package. `inst/CITATION` contains a commented `doi` field to
+  fill in once the release is archived, with a note that a manuscript
+  should wait for the DOI rather than cite the repository URL.
+
+- **Wording, across README, NEWS, roxygen and test comments.** A sweep
+  against the prose conventions in `CLAUDE.md` replaced vague verbs of
+  agency and possession with the relations they stood for, split
+  balanced “X, and Y” constructions into separate sentences, and gave
+  bare pronouns and quantifiers their nouns. Two statements were wrong
+  rather than loose. The README said the normal-approximation threshold
+  “guards two confirmed failure modes” when it guards against them, and
+  it described `bipois()` as containing
+  [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+  when the relation is that the difference implied by `bipois()` is
+  [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md).
 
 - The calibration instrument `coverage_recovery()` and its
   `PAIREDCOUNTBRMS_COVERAGE` gate were built for the joint families’
@@ -65,9 +124,8 @@ Of the entries in that span, two concern these families:
 
 - **0.7.0** re-parameterised
   [`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
-  onto `sigma` (see that release’s notes for the prior translation),
-  rewrote the recovery tests as smoke gates, and removed references to a
-  client project from the documentation.
+  onto `sigma` (see that release’s notes for the prior translation) and
+  rewrote the recovery tests as smoke gates.
 - **0.6.0** renamed the package to `pairedcountbrms`.
 
 ## skellambrms 0.3.2

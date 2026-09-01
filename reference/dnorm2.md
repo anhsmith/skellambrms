@@ -45,17 +45,15 @@ any row that is bounded.
 [`dnorm1()`](https://anhsmith.github.io/skellambrms/reference/dnorm1.md),
 `mu` here genuinely is the family's mean, so brms's "must have a `mu`
 parameter" requirement (see
-[`?skellam1`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
+[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
 Details) is satisfied directly – no forced reinterpretation.
 
 **No constraint coupling mu and sigma.** Same structural contrast with
 [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
 already documented for
 [`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
-(see
-[`?dlaplace2`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
-Details): `mu` and `sigma` are free, independent parameters here, by
-design. Fitting
+(see its Details): `mu` and `sigma` are free, independent parameters
+here, by design. Fitting
 [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
 against
 [`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
@@ -67,3 +65,14 @@ families for that comparison.
 [`dnorm1()`](https://anhsmith.github.io/skellambrms/reference/dnorm1.md)
 (see its Details), generalised to branch on whether `z` is on the far
 side of `mu` rather than of 0.
+
+## See also
+
+[`dnorm2_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dnorm2_lccdf_stanvars.md)
+for truncation;
+[`dnorm1()`](https://anhsmith.github.io/skellambrms/reference/dnorm1.md)
+for the fixed-mean version;
+[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+for the coupled comparison;
+[`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
+for the heavy-tailed alternative.
