@@ -3,10 +3,14 @@ Title: Skellam and Discrete-Difference 'brms' Custom Families for Count
     Differences
 Version: 0.6.0
 Date: 2026-09-02
-Authors@R:
+Authors@R: c(
     person("Adam N. H.", "Smith", , "anhsmith@gmail.com",
-           role = c("aut", "cre"),
-           comment = c(ORCID = "0000-0003-0059-6206"))
+           role = c("aut", "cre", "cph"),
+           comment = c(ORCID = "0000-0003-0059-6206")),
+    person("The Nature Conservancy", role = "fnd"),
+    person("Belize Blue Bonds for Ocean Conservation", role = "fnd"),
+    person("Belize Fund for a Sustainable Future", role = "fnd")
+  )
 Description: Provides custom 'brms' families for a Z-valued difference
     between two paired counts, d = y1 - y2, for when only the disagreement
     between two sources is of interest or truncation via the 'brms' function

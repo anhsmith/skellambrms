@@ -365,6 +365,14 @@ The `log_lik_`, `posterior_predict_` and `posterior_epred_` functions are
 located by `brms` via name convention and are not normally called directly
 (except for the truncated-`posterior_epred` workaround above).
 
+## Funding
+
+This package was developed by [Sea Through
+Science](https://www.seathrough.science) for a fisheries electronic-monitoring
+project led by Johanna Pierre of [JPEC Consulting](https://jpec.co.nz/), with
+support from The Nature Conservancy, the Belize Blue Bonds for Ocean
+Conservation and the Belize Fund for a Sustainable Future.
+
 ## References
 
 Bland JM, Altman DG (1986) Statistical methods for assessing agreement between
