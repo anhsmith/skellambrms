@@ -24,52 +24,35 @@ returns a \code{stanvars} object holding the Stan code for \code{skellam1_lpmf}.
 \code{log_lik_skellam1()} returns a numeric vector of log-densities, one per
 posterior draw, for observation \code{i}. \code{posterior_predict_skellam1()}
 returns a vector of simulated differences, one per posterior draw, for
-observation \code{i}, drawn subject to that row's \code{resp_trunc()} bounds where
-it has any. \code{posterior_epred_skellam1()} returns a draws x observations
+observation \code{i}, drawn within the truncation bounds of that observation
+if it has any. \code{posterior_epred_skellam1()} returns a draws x observations
 matrix of means, taken over the truncated distribution on any row that is
 bounded.
 }
 \description{
 Returns a brms custom family for the symmetric Skellam distribution,
-Skellam(mu_skellam, mu_skellam) — the distribution of the difference of
-two independent Poisson(mu_skellam) random variables. The single
-parameter is sigma (link = "log"), the SD of that difference; the mean
-is always zero. Internally, mu_skellam = sigma^2 / 2 is derived as a
-transformed parameter and fed to the underlying Bessel-function PMF,
-which is otherwise unchanged.
+Skellam(mu_skellam, mu_skellam): the distribution of the difference of
+two independent Poisson(mu_skellam) random variables. The mean is zero.
+The single parameter is \code{sigma} (log link), the SD of the difference. The
+Stan code derives \code{mu_skellam = sigma^2 / 2} and evaluates the Skellam
+PMF, which is written in terms of a modified Bessel function, at that
+value.
 
 Use in a brm() call as:
 brm(y ~ ..., family = skellam1(), stanvars = skellam1_stanvars(), data = ...)
 }
-\details{
-This family was originally parameterised directly on mu_skellam
-(link = "log"); it now samples on sigma instead, for a common
-(mean, SD-scale) convention shared with skellam2(), dlaplace1(), and
-dlaplace2(). Since sigma = sqrt(2 * mu_skellam), a prior previously
-written on log(mu_skellam) — e.g. normal(1, 1.5) — translates as:
-log(sigma) = 0.5 * log(2) + 0.5 * log(mu_skellam)
-so an intercept of 1 on the old log(mu_skellam) scale corresponds to
-an intercept of \code{0.5*log(2) + 0.5*1} ≈ 0.847 on the new log(sigma) scale,
-and the old prior's SD of 1.5 becomes 0.75 on the new scale (a linear
-transform of a normal is normal). This is a scale correspondence only —
-slope-coefficient interpretations from the old parameterisation do
-NOT transfer; any offset-vs-free-slope diagnostic should be
-redone fresh against this sigma-scale parameterisation.
+\section{Parameter named mu}{
 
-\strong{Naming note.} \code{brms::custom_family()} hard-requires one \code{dpars}
-entry to be literally named \code{"mu"} (\code{stop2("All families must have a 'mu' parameter.")}, unconditional, no override) — every family built
-on it, including this one, must comply regardless of what that
-parameter actually represents. For skellam1, the brms/Stan-level dpar
-named \code{mu} IS sigma (the SD of the difference, log-linked); it is NOT
-the distribution's mean, which is structurally zero throughout. This
-is a forced naming collision with brms's API, not a reversion to the
-pre-reparameterisation behaviour: internally, \code{mu_skellam = mu^2 / 2}
-is still derived from it before reaching the Bessel-function PMF,
-exactly as documented above for "sigma". All R-side helper functions
-below immediately rebind this dpar to a variable called \code{sigma} so
-that no code in this package, other than the literal \code{dpars}/
-\code{get_dpar()} calls forced by brms, ever refers to it as \code{mu}.
+\code{brms::custom_family()} requires one distributional parameter to be named
+\code{"mu"}, whatever that parameter represents. In \code{skellam1()}, the parameter
+named \code{mu} is \code{sigma}, the SD of the difference, on the log link; the mean
+of \code{skellam1()} is zero throughout. In formulas and priors, refer to
+\code{sigma} as \code{mu}: for example, \code{prior(normal(1, 1.5), class = "Intercept")}
+is a prior on the intercept of log(sigma). The post-processing functions
+in this package read the parameter with \code{brms::get_dpar(prep, "mu")} and
+assign it at once to a variable named \code{sigma}.
 }
+
 \seealso{
 \code{\link[=skellam1_lccdf_stanvars]{skellam1_lccdf_stanvars()}} for truncation; \code{\link[=skellam2]{skellam2()}} for the
 free-mean Skellam; \code{\link[=dlaplace1]{dlaplace1()}} and \code{\link[=dnorm1]{dnorm1()}} for the same fixed

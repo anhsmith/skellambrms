@@ -1,8 +1,8 @@
 Package: skellambrms
 Title: Skellam and Discrete-Difference 'brms' Custom Families for Count
     Differences
-Version: 0.6.0
-Date: 2026-09-02
+Version: 0.6.1
+Date: 2026-10-04
 Authors@R: c(
     person("Adam N. H.", "Smith", , "anhsmith@gmail.com",
            role = c("aut", "cre", "cph"),
@@ -25,13 +25,18 @@ Description: Provides custom 'brms' families for a Z-valued difference
     instead: see the companion package 'bicountbrms'.
 License: MIT + file LICENSE
 Encoding: UTF-8
+Language: en-GB
 Imports:
-    brms,
+    brms (>= 2.21.0),
     skellam
 Suggests:
     cmdstanr,
     rstan,
     testthat (>= 3.0.0)
+SystemRequirements: A C++17 compiler and GNU make, with which 'rstan'
+    or CmdStan compiles each model when it is fitted; CmdStan
+    (<https://mc-stan.org/users/interfaces/cmdstan>) when 'brms' uses the
+    'cmdstanr' backend.
 Additional_repositories: https://stan-dev.r-universe.dev
 Config/testthat/edition: 3
 URL: https://github.com/anhsmith/skellambrms,

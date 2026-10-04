@@ -2,7 +2,8 @@
 % Please edit documentation in R/family.R
 \name{dlaplace1_lccdf_stanvars}
 \alias{dlaplace1_lccdf_stanvars}
-\title{Truncated-discrete-Laplace log-CCDF for use with brms's resp_trunc()}
+\title{Log-CCDF of the discrete Laplace distribution with location 0, for
+truncated fits}
 \usage{
 dlaplace1_lccdf_stanvars()
 }
@@ -12,12 +13,12 @@ function, for combining with \code{dlaplace1_stanvars()} via \code{+}.
 }
 \description{
 Returns a \code{brms::stanvar()} defining \code{dlaplace1_lccdf}, the log
-complementary CDF of the discrete Laplace(0, sigma) family --
-\code{dlaplace1_lccdf(y, sigma)} = log P(Z > y). Same role and calling
-convention as \code{skellam1_lccdf_stanvars()}. Unlike the Skellam
-families' lccdf stanvars, this takes no threshold argument: the
-closed-form \code{log1m_exp(double_exponential_lcdf(...))} has no
-large-argument failure mode to guard against.
+complementary CDF of the discrete Laplace(0, sigma) distribution:
+\code{dlaplace1_lccdf(y, sigma)} = log P(Z > y). \code{dlaplace1_lccdf_stanvars()}
+is used in the same way as \code{\link[=skellam1_lccdf_stanvars]{skellam1_lccdf_stanvars()}}, but takes no
+threshold argument, because the closed form
+\code{log1m_exp(double_exponential_lcdf(...))} involves no Bessel function and
+no iterative sum.
 }
 \seealso{
 \code{\link[=dlaplace1]{dlaplace1()}} for the family itself; \code{\link[=skellam1_lccdf_stanvars]{skellam1_lccdf_stanvars()}} for

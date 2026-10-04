@@ -2,8 +2,8 @@
 % Please edit documentation in R/family.R
 \name{dnorm2_lccdf_stanvars}
 \alias{dnorm2_lccdf_stanvars}
-\title{Truncated-discrete-normal log-CCDF for use with brms's resp_trunc()
-(free location and scale)}
+\title{Log-CCDF of the discrete normal distribution with free location, for
+truncated fits}
 \usage{
 dnorm2_lccdf_stanvars()
 }
@@ -13,10 +13,10 @@ function, for combining with \code{dnorm2_stanvars()} via \code{+}.
 }
 \description{
 Returns a \code{brms::stanvar()} defining \code{dnorm2_lccdf}, the log
-complementary CDF of the discrete Normal(mu, sigma) family --
-\code{dnorm2_lccdf(y, mu, sigma)} = log P(Z > y). Same role, calling
-convention, and no-threshold-argument rationale as
-\code{dnorm1_lccdf_stanvars()}.
+complementary CDF of the discrete Normal(mu, sigma) distribution:
+\code{dnorm2_lccdf(y, mu, sigma)} = log P(Z > y). \code{dnorm2_lccdf_stanvars()} is
+used in the same way as \code{\link[=dnorm1_lccdf_stanvars]{dnorm1_lccdf_stanvars()}}, and likewise takes no
+threshold argument.
 }
 \seealso{
 \code{\link[=dnorm2]{dnorm2()}} for the family itself; \code{\link[=dnorm1_lccdf_stanvars]{dnorm1_lccdf_stanvars()}} for the

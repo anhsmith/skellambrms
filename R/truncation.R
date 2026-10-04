@@ -227,13 +227,42 @@ skellam1_lpmf_r <- function(k, sigma) {
   log(besselI(2 * mu_skellam, abs(k), expon.scaled = TRUE))
 }
 
+# log(1 - exp(x)) for x <= 0, accurate at both ends (Maechler 2012).
+.log1m_exp <- function(x) {
+  ifelse(x > -log(2), log(-expm1(x)), log1p(-exp(x)))
+}
+
 # Tail-sum log-CCDF below the normal-approx threshold: log P(K > y) via the
 # same iterative Bessel-sum as skellam1_lccdf_stan/skellam2_lccdf_stan (500-
-# iteration hard cap, early exit once a term is 40 log-units below the
-# running sum). `lpmf_at_k` is a closure over the fixed per-draw parameters,
-# called once per candidate integer k >= y+1.
-.skellam_tailsum_lccdf <- function(y, lpmf_at_k) {
+# term hard cap, early exit once a term is 40 log-units below the running
+# sum). `lpmf_at_k` is a closure over the fixed per-draw parameters, and
+# `mean` is the mean of K.
+#
+# The sum always runs away from the bulk of the distribution, so that its
+# terms shrink and the early exit is reached. For y >= mean, it sums the
+# upper tail upward from y + 1. For y < mean, it sums the lower tail
+# downward from y and returns log(1 - P(K <= y)). Summing upward from
+# y + 1 for every y, as before 0.6.1, ran out of terms before reaching the
+# bulk whenever y lay more than about 495 below it, so the log-CCDF of a
+# far lower truncation bound came out far below its true value of about 0.
+.skellam_tailsum_lccdf <- function(y, lpmf_at_k, mean) {
   acc <- -Inf
+  if (y < mean) {
+    k <- y
+    hard_cap <- y - 500
+    repeat {
+      lp_k <- lpmf_at_k(k)
+      new_acc <- .log_sum_exp_pair(acc, lp_k)
+      # besselI() underflows to 0 at large orders, so far below the bulk
+      # every term is -Inf and the relative test below never succeeds; the
+      # lower tail is then below exp(-745) and its log is taken as -Inf.
+      if (k < y - 5 && (new_acc == -Inf || lp_k < new_acc - 40)) { acc <- new_acc; break }
+      acc <- new_acc
+      k <- k - 1
+      if (k <= hard_cap) break
+    }
+    return(.log1m_exp(acc))
+  }
   k <- y + 1
   hard_cap <- y + 1 + 500
   repeat {
@@ -265,7 +294,7 @@ skellam1_lccdf_r <- function(y, sigma, normal_approx_threshold = 100) {
   if (any(!approx)) {
     idx <- which(!approx)
     out[idx] <- mapply(
-      function(yy, mm) .skellam_tailsum_lccdf(yy, function(k) log(besselI(2 * mm, abs(k), expon.scaled = TRUE))),
+      function(yy, mm) .skellam_tailsum_lccdf(yy, function(k) log(besselI(2 * mm, abs(k), expon.scaled = TRUE)), mean = 0),
       y[idx], mu_skellam[idx]
     )
   }
@@ -313,7 +342,7 @@ skellam2_lccdf_r <- function(y, mu, sigmaexcess, normal_approx_threshold = 100) 
         zz <- 2 * sqrt(t1 * t2)
         .skellam_tailsum_lccdf(yy, function(k) {
           log(besselI(zz, abs(k), expon.scaled = TRUE)) + zz - t1 - t2 + (k / 2) * log(t1 / t2)
-        })
+        }, mean = t1 - t2)
       },
       y[idx], theta1[idx], theta2[idx]
     )
@@ -367,6 +396,28 @@ dlaplace2_lccdf_r <- function(y, mu, sigma) {
   ifelse(x >= 0, log(0.5) - x / b, log1p(-0.5 * exp(x / b)))
 }
 
+# Untruncated mean of the discrete Laplace(mu, sigma), in closed form. Z is
+# distributed as round(X) with X ~ Laplace(mu, b), and E[Z] equals mu only
+# for integer or half-integer mu. Writing mu = n + f with n = floor(mu) and
+# f in [0, 1), round(X) = n + round(f + L) for L ~ Laplace(0, b), and
+#   E[round(f + L)] = sum_{k >= 1} P(f + L >= k - 1/2)
+#                     - sum_{k >= 1} P(f + L <= 1/2 - k).
+# Every term except P(f + L >= 1/2) is a Laplace tail probability of the
+# form 0.5 * exp(-d / b) with d > 0, so the two sums are geometric with ratio
+# exp(-1 / b). The k = 1 term of the first sum changes form at f = 1/2.
+# Agrees with direct summation of the PMF to 1e-14 for sigma from 0.01 to
+# 100.
+.dlaplace_mean <- function(mu, sigma) {
+  b <- sigma / sqrt(2)
+  n <- floor(mu)
+  f <- mu - n
+  one_minus_ratio <- -expm1(-1 / b)
+  first <- ifelse(f <= 0.5,
+                  0.5 * exp(-(0.5 - f) / b),
+                  1 - 0.5 * exp(-(f - 0.5) / b))
+  n + first + 0.5 * (exp(-(1.5 - f) / b) - exp(-(0.5 + f) / b)) / one_minus_ratio
+}
+
 # --------------------------------------------------------------------------
 # dnorm1 / dnorm2: discrete normal (location 0 / free location)
 # --------------------------------------------------------------------------
@@ -407,4 +458,43 @@ dnorm1_lccdf_r <- function(y, sigma) {
 dnorm2_lccdf_r <- function(y, mu, sigma) {
   z <- (y + 0.5 - mu) / (sigma * sqrt(2))
   log(0.5) + log(.erfc(z))
+}
+
+# Untruncated mean of the discrete Normal(mu, sigma). As for the discrete
+# Laplace, Z is distributed as round(X) and E[Z] equals mu only for integer
+# or half-integer mu. From the Fourier series of the fractional part,
+#   E[round(X)] = mu + sum_{k >= 1} (-1)^k sin(2 pi k mu) phi(2 pi k) / (pi k),
+# with phi(t) = exp(-sigma^2 t^2 / 2) the characteristic function of
+# Normal(0, sigma). For sigma >= 0.1, the terms beyond k = 30 are below
+# exp(-170). For sigma < 0.1, the series converges slowly, but nearly all of
+# the probability lies within 0.6 of mu, so the mean is summed directly
+# from the tail probabilities instead, as for .dlaplace_mean(). Agrees with
+# direct summation of the PMF to 1e-14 for sigma from 0.01 to 100.
+.dnorm_mean <- function(mu, sigma, n_terms = 30L) {
+  out <- mu + 0 * sigma
+  sigma <- sigma + 0 * mu
+  wide <- sigma >= 0.1
+  if (any(wide)) {
+    m <- out[wide]
+    s <- sigma[wide]
+    correction <- 0
+    for (k in seq_len(n_terms)) {
+      correction <- correction +
+        (-1)^k * sin(2 * pi * k * m) * exp(-2 * pi^2 * k^2 * s^2) / (pi * k)
+    }
+    out[wide] <- m + correction
+  }
+  if (any(!wide)) {
+    m <- out[!wide]
+    s <- sigma[!wide]
+    n <- floor(m)
+    f <- m - n
+    e <- 0
+    for (k in 1:6) {
+      e <- e + stats::pnorm(k - 0.5 - f, sd = s, lower.tail = FALSE) -
+        stats::pnorm(-(k - 0.5 + f), sd = s)
+    }
+    out[!wide] <- n + e
+  }
+  out
 }

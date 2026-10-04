@@ -2,7 +2,8 @@
 % Please edit documentation in R/family.R
 \name{dnorm1_lccdf_stanvars}
 \alias{dnorm1_lccdf_stanvars}
-\title{Truncated-discrete-normal log-CCDF for use with brms's resp_trunc()}
+\title{Log-CCDF of the discrete normal distribution with location 0, for
+truncated fits}
 \usage{
 dnorm1_lccdf_stanvars()
 }
@@ -12,13 +13,13 @@ function, for combining with \code{dnorm1_stanvars()} via \code{+}.
 }
 \description{
 Returns a \code{brms::stanvar()} defining \code{dnorm1_lccdf}, the log
-complementary CDF of the discrete Normal(0, sigma) family --
-\code{dnorm1_lccdf(y, sigma)} = log P(Z > y). Same role and calling
-convention as \code{dlaplace1_lccdf_stanvars()}, but built directly on
-Stan's \code{normal_lccdf} (an upper-tail log-survival function Stan
-exposes as a built-in for the normal), rather than a
-\code{log1m_exp(lcdf(...))} composition -- no threshold argument and no
-large-argument failure mode to guard against.
+complementary CDF of the discrete Normal(0, sigma) distribution:
+\code{dnorm1_lccdf(y, sigma)} = log P(Z > y). \code{dnorm1_lccdf_stanvars()} is
+used in the same way as \code{\link[=dlaplace1_lccdf_stanvars]{dlaplace1_lccdf_stanvars()}}. \code{dnorm1_lccdf}
+computes the upper tail with \code{erfc()} rather than with the Stan function
+\code{normal_lccdf}, which returns negative infinity for standardised
+arguments above about 8.25 (see \code{\link[=dnorm1]{dnorm1()}}). \code{dnorm1_lccdf_stanvars()}
+takes no threshold argument.
 }
 \seealso{
 \code{\link[=dnorm1]{dnorm1()}} for the family itself; \code{\link[=skellam1_lccdf_stanvars]{skellam1_lccdf_stanvars()}} for how

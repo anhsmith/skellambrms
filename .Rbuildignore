@@ -10,3 +10,4 @@
 ^\.github$
 ^\.zenodo\.json$
 ^tools$
+^cran-comments\.md$

@@ -2,46 +2,25 @@
 #'
 #' @description
 #' Returns a brms custom family for the symmetric Skellam distribution,
-#' Skellam(mu_skellam, mu_skellam) — the distribution of the difference of
-#' two independent Poisson(mu_skellam) random variables. The single
-#' parameter is sigma (link = "log"), the SD of that difference; the mean
-#' is always zero. Internally, mu_skellam = sigma^2 / 2 is derived as a
-#' transformed parameter and fed to the underlying Bessel-function PMF,
-#' which is otherwise unchanged.
+#' Skellam(mu_skellam, mu_skellam): the distribution of the difference of
+#' two independent Poisson(mu_skellam) random variables. The mean is zero.
+#' The single parameter is `sigma` (log link), the SD of the difference. The
+#' Stan code derives `mu_skellam = sigma^2 / 2` and evaluates the Skellam
+#' PMF, which is written in terms of a modified Bessel function, at that
+#' value.
 #'
 #' Use in a brm() call as:
 #'   brm(y ~ ..., family = skellam1(), stanvars = skellam1_stanvars(), data = ...)
 #'
-#' @details
-#' This family was originally parameterised directly on mu_skellam
-#' (link = "log"); it now samples on sigma instead, for a common
-#' (mean, SD-scale) convention shared with skellam2(), dlaplace1(), and
-#' dlaplace2(). Since sigma = sqrt(2 * mu_skellam), a prior previously
-#' written on log(mu_skellam) — e.g. normal(1, 1.5) — translates as:
-#'   log(sigma) = 0.5 * log(2) + 0.5 * log(mu_skellam)
-#' so an intercept of 1 on the old log(mu_skellam) scale corresponds to
-#' an intercept of `0.5*log(2) + 0.5*1` ≈ 0.847 on the new log(sigma) scale,
-#' and the old prior's SD of 1.5 becomes 0.75 on the new scale (a linear
-#' transform of a normal is normal). This is a scale correspondence only —
-#' slope-coefficient interpretations from the old parameterisation do
-#' NOT transfer; any offset-vs-free-slope diagnostic should be
-#' redone fresh against this sigma-scale parameterisation.
-#'
-#' @details
-#' **Naming note.** `brms::custom_family()` hard-requires one `dpars`
-#' entry to be literally named `"mu"` (`stop2("All families must have a
-#' 'mu' parameter.")`, unconditional, no override) — every family built
-#' on it, including this one, must comply regardless of what that
-#' parameter actually represents. For skellam1, the brms/Stan-level dpar
-#' named `mu` IS sigma (the SD of the difference, log-linked); it is NOT
-#' the distribution's mean, which is structurally zero throughout. This
-#' is a forced naming collision with brms's API, not a reversion to the
-#' pre-reparameterisation behaviour: internally, `mu_skellam = mu^2 / 2`
-#' is still derived from it before reaching the Bessel-function PMF,
-#' exactly as documented above for "sigma". All R-side helper functions
-#' below immediately rebind this dpar to a variable called `sigma` so
-#' that no code in this package, other than the literal `dpars`/
-#' `get_dpar()` calls forced by brms, ever refers to it as `mu`.
+#' @section Parameter named mu:
+#' `brms::custom_family()` requires one distributional parameter to be named
+#' `"mu"`, whatever that parameter represents. In `skellam1()`, the parameter
+#' named `mu` is `sigma`, the SD of the difference, on the log link; the mean
+#' of `skellam1()` is zero throughout. In formulas and priors, refer to
+#' `sigma` as `mu`: for example, `prior(normal(1, 1.5), class = "Intercept")`
+#' is a prior on the intercept of log(sigma). The post-processing functions
+#' in this package read the parameter with `brms::get_dpar(prep, "mu")` and
+#' assign it at once to a variable named `sigma`.
 #'
 #' @return
 #' `skellam1()` returns a brms `custom_family` object. `skellam1_stanvars()`
@@ -49,8 +28,8 @@
 #' `log_lik_skellam1()` returns a numeric vector of log-densities, one per
 #' posterior draw, for observation `i`. `posterior_predict_skellam1()`
 #' returns a vector of simulated differences, one per posterior draw, for
-#' observation `i`, drawn subject to that row's `resp_trunc()` bounds where
-#' it has any. `posterior_epred_skellam1()` returns a draws x observations
+#' observation `i`, drawn within the truncation bounds of that observation
+#' if it has any. `posterior_epred_skellam1()` returns a draws x observations
 #' matrix of means, taken over the truncated distribution on any row that is
 #' bounded.
 #' @seealso [skellam1_lccdf_stanvars()] for truncation; [skellam2()] for the
@@ -73,60 +52,38 @@ skellam1_stanvars <- function() {
   brms::stanvar(block = "functions", scode = skellam1_stan_funs)
 }
 
-#' Truncated-Skellam log-CCDF for use with brms's resp_trunc()
+#' Log-CCDF of the symmetric Skellam distribution, for truncated fits
 #'
 #' @description
 #' Returns a `brms::stanvar()` defining `skellam1_lccdf`, the log
 #' complementary CDF of the symmetric Skellam(mu_skellam, mu_skellam)
-#' distribution — `skellam1_lccdf(y, sigma)` = log P(delta > y), where
-#' `mu_skellam = sigma^2 / 2` is derived internally. brms's generic
-#' truncation machinery (`resp_trunc()`) locates a custom family's
-#' log-CCDF by name convention (`<family>_lccdf`), so adding this stanvar
-#' alongside `skellam1_stanvars()` is sufficient to support truncated
-#' fits, including a row-varying lower bound — no other wiring is
-#' required.
+#' distribution: `skellam1_lccdf(y, sigma)` = log P(delta > y), with
+#' `mu_skellam = sigma^2 / 2` derived inside the function. For truncation
+#' with `resp_trunc()`, brms finds the log-CCDF of a custom family by the
+#' name `<family>_lccdf`. Adding this stanvar to `skellam1_stanvars()` is
+#' therefore all that a truncated fit requires, including a fit whose lower
+#' bound varies by row.
 #'
 #' @details
-#' For `mu_skellam` above `normal_approx_threshold`, the exact log-CCDF —
-#' an iterative tail-sum of the Skellam PMF, each term a Bessel function
-#' evaluation — is replaced by a normal approximation, using
-#' Var(Skellam(mu_skellam, mu_skellam)) = 2 * mu_skellam. This guards
-#' against two confirmed failure modes, both triggered by an unadapted
-#' HMC proposal pushing `sigma` (and hence `mu_skellam`) to an extreme
-#' value during warmup (the log link on `sigma` places no ceiling on it):
+#' For `mu_skellam` above `normal_approx_threshold`, `skellam1_lccdf` uses a
+#' normal approximation with variance `2 * mu_skellam`. At or below the
+#' threshold, it sums the PMF exactly, over whichever tail lies away from
+#' the mean: for `y >= 0`, the upper tail upward from `y + 1`; for `y < 0`,
+#' the lower tail downward from `y`, returning the log of one minus that
+#' sum. Each term of the sum evaluates a modified Bessel function, and the
+#' log link places no upper bound on `sigma`, so warmup can propose values
+#' of `mu_skellam` at which the exact sum is slow to evaluate. The sum stops
+#' after 500 terms, or earlier once a term is more than 40 log-units below
+#' the running sum; neither limit can be changed.
 #'
-#' - A crash (`std::bad_alloc`) from `log_modified_bessel_first_kind`
-#'   being evaluated at an enormous Bessel order.
-#' - A slow-motion version of the same problem: `mu_skellam` in the
-#'   hundreds still triggers the expensive exact loop, and if many rows do
-#'   this within a single deep NUTS tree the cost compounds
-#'   multiplicatively rather than crashing outright — observed as 200+
-#'   CPU-seconds and several GB of memory consumed without completing one
-#'   iteration.
+#' A larger threshold applies the exact sum to more evaluations, and a
+#' smaller one applies the normal approximation, which is less accurate in
+#' the tails, to more. The threshold is on the `mu_skellam` scale, not the
+#' `sigma` scale.
 #'
-#' The exact loop is also capped at 500 iterations past `y`,
-#' with an early exit once the tail term becomes negligible (more than
-#' ~40 log-units below the running sum). These guard the same two
-#' failure modes as the threshold itself and are not configurable here.
-#'
-#' The default threshold of 100 is **not a universal constant** — it
-#' was calibrated to one project's data, where real per-taxon
-#' `mu_skellam` estimates topped out around 30 (this is on the
-#' `mu_skellam` scale, unaffected by the sigma-reparameterisation). The 3x
-#' margin above that (rather than setting the threshold at, say, 35)
-#' exists because HMC warmup transiently proposes values well outside any
-#' final posterior estimate, not because 30 itself needed padding. When
-#' using this function with a different count scale, consider what
-#' *implausible but reachable during warmup* looks like for your
-#' `mu_skellam`, not just your expected posterior range, and set the
-#' threshold a few-fold above that. Setting it too low pays for the
-#' normal approximation's bias more often than necessary; setting it too
-#' high re-exposes the crash/slow-blowup risk this exists to prevent.
-#'
-#' @param normal_approx_threshold Numeric scalar; `mu_skellam` values
-#'   above this use the normal approximation instead of the exact
-#'   Bessel-sum tail. Default `100`. See Details for how to choose this
-#'   for your data.
+#' @param normal_approx_threshold Numeric scalar. Values of `mu_skellam`
+#'   above this threshold use the normal approximation instead of the exact
+#'   tail sum. Default `100`.
 #'
 #' @return A `brms::stanvars` object defining the `skellam1_lccdf` Stan
 #'   function, for combining with `skellam1_stanvars()` via `+`.
@@ -212,63 +169,50 @@ posterior_epred_skellam1 <- function(prep) {
 #' Asymmetric Skellam custom family for brms
 #'
 #' @description
-#' Returns a brms custom family for the general (asymmetric) Skellam
-#' distribution, Skellam(theta1, theta2) — the distribution of the
-#' difference of two independent Poisson(theta1), Poisson(theta2) random
-#' variables with possibly unequal rates. Two parameters: `mu` (link =
-#' "identity"), the mean of the difference, and `sigmaexcess` (link =
-#' "log", so `>= 0`), from which `sigma`, the SD of the difference, and
-#' the underlying rates `theta1`, `theta2` are derived as transformed
-#' quantities (see Details).
+#' Returns a brms custom family for the asymmetric Skellam distribution,
+#' Skellam(theta1, theta2): the distribution of the difference of two
+#' independent Poisson random variables with rates `theta1` and `theta2`,
+#' which may differ. The two parameters are `mu` (identity link), the mean
+#' of the difference, and `sigmaexcess` (log link, so non-negative). The SD
+#' of the difference, `sigma`, and the rates `theta1` and `theta2` are
+#' derived from `mu` and `sigmaexcess` (see Details).
 #'
 #' Use in a brm() call as:
 #'   brm(y ~ ..., family = skellam2(), stanvars = skellam2_stanvars(), data = ...)
 #'
-#' @details
-#' **Naming note.** `brms::custom_family()` disallows underscores in
-#' `dpars` (`stop2("Dots or underscores are not allowed in 'dpars'.")`),
-#' so the second parameter is spelled `sigmaexcess`, not `sigma_excess`
-#' as in the package's design notes and Stan code comments — the two
-#' names refer to the same quantity.
+#' @section Parameter named sigmaexcess:
+#' `brms::custom_family()` does not allow underscores or dots in the names
+#' of distributional parameters, so the second parameter is named
+#' `sigmaexcess` rather than `sigma_excess`.
 #'
-#' **Constraint algebra — corrected from the original design.** The
-#' natural-seeming construction `sigma = sqrt(mu^2 + sigmaexcess^2)`
-#' (Pythagorean in mu and sigmaexcess) only guarantees `sigma >= |mu|`.
-#' That is NOT the condition Skellam validity actually needs. With
-#' `theta1 = (sigma^2 + mu) / 2` and `theta2 = (sigma^2 - mu) / 2`
-#' (from `theta1 + theta2 = sigma^2` and `theta1 - theta2 = mu`),
-#' `theta1, theta2 >= 0` requires `sigma^2 >= |mu|` — i.e. Var >= |mean|,
-#' the genuine Skellam constraint (sum of two nonnegative Poisson rates
-#' is always >= their difference's absolute value). `sigma >= |mu|` and
-#' `sigma^2 >= |mu|` coincide only when `|mu| >= 1`; for `|mu| < 1` they
-#' diverge, and `sigma = sqrt(mu^2 + sigmaexcess^2)` can produce a
-#' *negative* theta1 or theta2 — confirmed numerically, e.g.
-#' `mu = 0.5, sigmaexcess = 0` gives `sigma = 0.5`, `theta2 = -0.125`.
-#' This package instead uses:
-#'   sigma^2 = |mu| + sigmaexcess^2
-#' which guarantees `sigma^2 >= |mu|` directly (the right-hand side is
-#' `|mu|` plus a nonnegative term), for every `mu` and every
-#' `sigmaexcess >= 0`, with equality (the minimal-spread boundary) at
-#' `sigmaexcess = 0`. `theta1` and `theta2` are then both sums of
-#' nonnegative terms (verify: for `mu >= 0`, `theta1 = mu +
-#' sigmaexcess^2/2 >= 0` and `theta2 = sigmaexcess^2/2 >= 0`; for `mu <
-#' 0`, the roles swap) — strictly positive whenever `sigmaexcess > 0`,
-#' which the log link guarantees for any finite linear predictor. At
-#' `mu = 0`, this reduces exactly to skellam1's symmetric family
-#' (`sigma = sigmaexcess`, `theta1 = theta2 = sigmaexcess^2 / 2`).
+#' @section Constraint between mu and sigma:
+#' The Skellam rates satisfy `theta1 + theta2 = sigma^2` and
+#' `theta1 - theta2 = mu`, so `theta1 = (sigma^2 + mu) / 2` and
+#' `theta2 = (sigma^2 - mu) / 2`. Both rates are non-negative only if
+#' `sigma^2 >= |mu|`: the variance of a Skellam variable is at least the
+#' absolute value of its mean. `skellam2()` satisfies this constraint by
+#' construction, through
+#'   sigma^2 = |mu| + sigmaexcess^2,
+#' for every `mu` and every `sigmaexcess >= 0`, with equality at
+#' `sigmaexcess = 0`. For `mu >= 0`, `theta1 = mu + sigmaexcess^2 / 2` and
+#' `theta2 = sigmaexcess^2 / 2`. For `mu < 0`, `theta1 = sigmaexcess^2 / 2`
+#' and `theta2 = |mu| + sigmaexcess^2 / 2`. Both rates are strictly positive
+#' whenever `sigmaexcess > 0`, which the log link guarantees for any finite
+#' linear predictor. At `mu = 0`, `skellam2()` reduces to `skellam1()`, with
+#' `sigma = sigmaexcess` and `theta1 = theta2 = sigmaexcess^2 / 2`.
 #'
-#' **Generated-quantities note.** This family does *not* expose `mu`,
-#' `sigma`, `sigma^2`, `theta1`, `theta2` via a Stan `generated
-#' quantities` block. Confirmed via `make_stancode()`: brms declares a
-#' custom family's per-observation dpar vectors (`mu`, `sigmaexcess`
-#' here) as local variables inside the generated model's `model` block,
-#' not `transformed parameters` — out of Stan-scope for `generated
-#' quantities`, regardless of `loop = TRUE/FALSE`. Reconstructing them
-#' from brms's internal linear-predictor variable names (`Xc`, `b`,
-#' `Intercept`, ...) would only work for simple fixed-effects-only
-#' formulas, breaking silently for anything with random effects or
-#' splines. `skellam2_dpars()` (below) reports the same five quantities
-#' from R instead, via `brms::get_dpar()` — works for any formula.
+#' The alternative construction `sigma = sqrt(mu^2 + sigmaexcess^2)`
+#' guarantees only `sigma >= |mu|`, which does not imply `sigma^2 >= |mu|`
+#' when `|mu| < 1`. It can then give a negative rate: `mu = 0.5` and
+#' `sigmaexcess = 0` give `sigma = 0.5` and `theta2 = -0.125`.
+#'
+#' @section Derived quantities:
+#' The Stan program that brms generates declares the per-observation vectors
+#' of distributional parameters, here `mu` and `sigmaexcess`, as local
+#' variables in the `model` block rather than as transformed parameters. A
+#' `generated quantities` block therefore cannot refer to them, with or
+#' without `loop = TRUE`. [skellam2_dpars()] instead computes `mu`, `sigma`, `sigma^2`, `theta1` and
+#' `theta2` in R with `brms::get_dpar()`, which works for any formula.
 #'
 #' @return
 #' `skellam2()` returns a brms `custom_family` object. `skellam2_stanvars()`
@@ -276,8 +220,8 @@ posterior_epred_skellam1 <- function(prep) {
 #' `log_lik_skellam2()` returns a numeric vector of log-densities, one per
 #' posterior draw, for observation `i`. `posterior_predict_skellam2()`
 #' returns a vector of simulated differences, one per posterior draw, for
-#' observation `i`, drawn subject to that row's `resp_trunc()` bounds where
-#' it has any. `posterior_epred_skellam2()` returns a draws x observations
+#' observation `i`, drawn within the truncation bounds of that observation
+#' if it has any. `posterior_epred_skellam2()` returns a draws x observations
 #' matrix of means, taken over the truncated distribution on any row that is
 #' bounded.
 #' @seealso [skellam2_lccdf_stanvars()] for truncation; [skellam2_dpars()] to
@@ -302,27 +246,28 @@ skellam2_stanvars <- function() {
   brms::stanvar(block = "functions", scode = skellam2_stan_funs)
 }
 
-#' Truncated-asymmetric-Skellam log-CCDF for use with brms's resp_trunc()
+#' Log-CCDF of the asymmetric Skellam distribution, for truncated fits
 #'
 #' @description
 #' Returns a `brms::stanvar()` defining `skellam2_lccdf`, the log
 #' complementary CDF of the asymmetric Skellam(theta1, theta2)
-#' distribution — `skellam2_lccdf(y, mu, sigmaexcess)` = log P(delta > y).
-#' Same role and calling convention as `skellam1_lccdf_stanvars()`; see
-#' that function's documentation for how `resp_trunc()` locates it and
-#' for the rationale behind the normal-approximation threshold (here
-#' checked against `mu_skellam = (theta1 + theta2) / 2`, the direct
-#' generalisation of skellam1's threshold quantity to the asymmetric
-#' case — see skellam2_lccdf_stan() in stanfunctions.R).
+#' distribution: `skellam2_lccdf(y, mu, sigmaexcess)` = log P(delta > y).
+#' `skellam2_lccdf_stanvars()` is used in the same way as
+#' [skellam1_lccdf_stanvars()], and the documentation of
+#' `skellam1_lccdf_stanvars()` describes how `resp_trunc()` finds the
+#' function, the normal approximation and the exact sum. In
+#' `skellam2_lccdf`, the threshold is compared with
+#' `mu_skellam = (theta1 + theta2) / 2`, which equals the `mu_skellam` of
+#' `skellam1()` when `theta1 = theta2`, and the exact sum changes from the
+#' upper to the lower tail at `y = mu` rather than at `y = 0`.
 #'
-#' @param normal_approx_threshold Numeric scalar; see
-#'   `skellam1_lccdf_stanvars()` for how to choose this for your data.
-#'   Default `100`.
+#' @param normal_approx_threshold Numeric scalar, compared with
+#'   `mu_skellam` as described above. Default `100`.
 #'
 #' @return A `brms::stanvars` object defining the `skellam2_lccdf` Stan
 #'   function, for combining with `skellam2_stanvars()` via `+`.
 #' @seealso [skellam2()] for the family itself; [skellam1_lccdf_stanvars()] for
-#'   the normal-approximation threshold and how to choose it.
+#'   the normal approximation and the exact sum.
 #' @export
 skellam2_lccdf_stanvars <- function(normal_approx_threshold = 100) {
   brms::stanvar(
@@ -331,14 +276,15 @@ skellam2_lccdf_stanvars <- function(normal_approx_threshold = 100) {
   )
 }
 
-#' Report skellam2's derived quantities from a fitted model
+#' Derived quantities of the asymmetric Skellam family from a fitted model
 #'
 #' @description
-#' Returns `mu`, `sigma`, `sigma^2`, `theta1`, and `theta2` (each a
-#' draws x observations matrix) from a `skellam2()` `brmsfit`, computed
-#' in R via `brms::get_dpar()` rather than a Stan `generated quantities`
-#' block — see "Generated-quantities note" in [skellam2()] for why the
-#' latter isn't available for this family.
+#' Returns `mu`, `sigma`, `sigma^2`, `theta1` and `theta2`, each as a
+#' draws x observations matrix, from a `brmsfit` fitted with `skellam2()`.
+#' The quantities are computed in R with `brms::get_dpar()`, because the
+#' Stan program generated by brms cannot report them from a
+#' `generated quantities` block. The section "Derived quantities" in
+#' [skellam2()] gives the reason.
 #'
 #' @param fit A `brmsfit` fitted with `family = skellam2()`.
 #' @param newdata Optional new data, passed to `brms::prepare_predictions()`.
@@ -430,40 +376,48 @@ posterior_epred_skellam2 <- function(prep) {
 #' Discrete-Laplace custom family for brms (location 0, free scale)
 #'
 #' @description
-#' Returns a brms custom family for the discrete Laplace distribution,
-#' location fixed at 0, discretised from the continuous Laplace(0, b) via
-#' CDF differencing: `P(Z=z) = F(z+0.5) - F(z-0.5)`. One parameter, sigma
-#' (link = "log"), the SD; the mean is always zero. Unlike skellam1/
-#' skellam2, the PMF and CCDF are closed-form
-#' (`double_exponential_lcdf`-based -- Stan's name for the Laplace
-#' distribution -- no Bessel function, no large-argument branch or
-#' iteration cap needed).
+#' Returns a brms custom family for the discrete Laplace distribution with
+#' location fixed at 0, obtained from the continuous Laplace(0, b) by CDF
+#' differencing: `P(Z = z) = F(z + 0.5) - F(z - 0.5)`. The single parameter
+#' is `sigma` (log link), the SD of the continuous distribution before
+#' discretisation (see "Conversion from sigma to b"); the mean is zero.
+#' Unlike the PMF and CCDF
+#' of `skellam1()` and `skellam2()`, those of `dlaplace1()` are closed-form,
+#' built on the Stan function `double_exponential_lcdf` (Stan names the
+#' Laplace distribution "double exponential"). They require no Bessel
+#' function, no large-argument branch and no iteration cap.
 #'
 #' Use in a brm() call as:
 #'   brm(y ~ ..., family = dlaplace1(), stanvars = dlaplace1_stanvars(), data = ...)
 #'
-#' @details
-#' **Naming note.** Same forced naming as `skellam1()`: `brms::custom_family()`
-#' requires a dpar literally named `"mu"`; here it represents sigma (the
-#' SD), not a mean. See [skellam1()] Details for the full rationale.
+#' @section Parameter named mu:
+#' As in `skellam1()`, `brms::custom_family()` requires a parameter named
+#' `"mu"`, and in `dlaplace1()` that parameter is `sigma`, the SD, not a
+#' mean. See [skellam1()] for the consequences for formulas and priors.
 #'
-#' **sigma-to-b conversion.** Stan's `double_exponential_lcdf` expects
-#' the continuous Laplace's own scale parameter, `b`. Var(Laplace(0,b)) = `2*b^2`, so SD
-#' = `b*sqrt(2)`; treating sigma as exactly that SD (the discretisation
-#' perturbs the true discrete variance only slightly, and this keeps
-#' sigma on the same scale as the other three families) gives
-#' `b = sigma / sqrt(2)`, computed first in both `dlaplace1_lpmf` and
-#' `dlaplace1_lccdf`.
+#' @section Conversion from sigma to b:
+#' `double_exponential_lcdf` takes the scale `b` of the continuous Laplace
+#' distribution. The variance of Laplace(0, b) is `2 * b^2`, so its SD is
+#' `b * sqrt(2)`, and `dlaplace1_lpmf` and `dlaplace1_lccdf` both begin by
+#' computing `b = sigma / sqrt(2)`. The conversion treats `sigma` as the SD
+#' of the continuous distribution. For `sigma >= 0.5`, the SD of the
+#' discretised distribution is larger: by 7.9% at `sigma = 0.5`, 3.4% at
+#' `sigma = 1`, 1.0% at `sigma = 2` and 0.2% at `sigma = 5`. At
+#' `sigma = 0.25`, it is 2.2% smaller, and below that it falls far below
+#' `sigma`, because nearly all of the probability falls on 0: at
+#' `sigma = 0.1`, the discretised SD is 0.029. In `skellam1()` and
+#' `skellam2()`, by contrast, `sigma` is the exact SD of the integer-valued
+#' difference.
 #'
-#' **Validation note.** `extraDistr::ddlaplace()` implements a different
-#' discrete Laplace — its `scale` argument is actually a decay
-#' probability `p` for the exact closed form `P(z) = (1-p)/(1+p) *
-#' p^|z|`, not a continuous-Laplace `b` — confirmed numerically to NOT
-#' match this family's CDF-differenced PMF (e.g. at `b=3`,
-#' `p=exp(-1/3)`: `P(0) = 0.1535` here vs `0.1651` there). This package's
-#' tests validate against a hand-derived CDF-difference R reference
-#' instead — the documented fallback for when a package reference isn't
-#' applicable.
+#' @section Comparison with extraDistr::ddlaplace:
+#' `extraDistr::ddlaplace()` implements a different discrete Laplace
+#' distribution, with PMF `P(z) = (1 - p) / (1 + p) * p^|z|`, in which its
+#' argument `scale` is the decay probability `p` rather than the continuous
+#' scale `b`. The two PMFs differ: at `b = 3` and `p = exp(-1/3)`,
+#' `P(0) = 0.1535` under `dlaplace1()` and `0.1651` under
+#' `extraDistr::ddlaplace()`. The tests in this package therefore compare
+#' `dlaplace1()` with an R implementation of the CDF difference rather than
+#' with `extraDistr`.
 #'
 #' @return
 #' `dlaplace1()` returns a brms `custom_family` object.
@@ -471,8 +425,8 @@ posterior_epred_skellam2 <- function(prep) {
 #' for `dlaplace1_lpmf`. `log_lik_dlaplace1()` returns a numeric vector of
 #' log-densities, one per posterior draw, for observation `i`.
 #' `posterior_predict_dlaplace1()` returns a vector of simulated
-#' differences, one per posterior draw, for observation `i`, drawn subject
-#' to that row's `resp_trunc()` bounds where it has any.
+#' differences, one per posterior draw, for observation `i`, drawn within
+#' the truncation bounds of that observation if it has any.
 #' `posterior_epred_dlaplace1()` returns a draws x observations matrix of
 #' means, taken over the truncated distribution on any row that is bounded.
 #' @seealso [dlaplace1_lccdf_stanvars()] for truncation; [dlaplace2()] for the
@@ -495,16 +449,17 @@ dlaplace1_stanvars <- function() {
   brms::stanvar(block = "functions", scode = dlaplace1_stan_funs)
 }
 
-#' Truncated-discrete-Laplace log-CCDF for use with brms's resp_trunc()
+#' Log-CCDF of the discrete Laplace distribution with location 0, for
+#' truncated fits
 #'
 #' @description
 #' Returns a `brms::stanvar()` defining `dlaplace1_lccdf`, the log
-#' complementary CDF of the discrete Laplace(0, sigma) family --
-#' `dlaplace1_lccdf(y, sigma)` = log P(Z > y). Same role and calling
-#' convention as `skellam1_lccdf_stanvars()`. Unlike the Skellam
-#' families' lccdf stanvars, this takes no threshold argument: the
-#' closed-form `log1m_exp(double_exponential_lcdf(...))` has no
-#' large-argument failure mode to guard against.
+#' complementary CDF of the discrete Laplace(0, sigma) distribution:
+#' `dlaplace1_lccdf(y, sigma)` = log P(Z > y). `dlaplace1_lccdf_stanvars()`
+#' is used in the same way as [skellam1_lccdf_stanvars()], but takes no
+#' threshold argument, because the closed form
+#' `log1m_exp(double_exponential_lcdf(...))` involves no Bessel function and
+#' no iterative sum.
 #'
 #' @return A `brms::stanvars` object defining the `dlaplace1_lccdf` Stan
 #'   function, for combining with `dlaplace1_stanvars()` via `+`.
@@ -586,36 +541,44 @@ posterior_epred_dlaplace1 <- function(prep) {
 #' Discrete-Laplace custom family for brms (free location and scale)
 #'
 #' @description
-#' Returns a brms custom family for the discrete Laplace distribution
-#' with both location (`mu`, link = "identity") and scale (`sigma`,
-#' link = "log") free, discretised via CDF differencing exactly as
-#' `dlaplace1()` but centred at `mu` instead of fixed at 0:
-#' `P(Z=z) = F(z+0.5) - F(z-0.5)`, `F` the continuous Laplace(mu, b) CDF.
+#' Returns a brms custom family for the discrete Laplace distribution with
+#' free location (`mu`, identity link) and free scale (`sigma`, log link),
+#' obtained by CDF differencing as in `dlaplace1()` but centred at `mu`
+#' rather than 0: `P(Z = z) = F(z + 0.5) - F(z - 0.5)`, where `F` is the CDF
+#' of the continuous Laplace(mu, b).
 #'
 #' Use in a brm() call as:
 #'   brm(y ~ ..., family = dlaplace2(), stanvars = dlaplace2_stanvars(), data = ...)
 #'
-#' @details
-#' **No naming workaround needed.** Unlike `skellam1()`/`dlaplace1()`,
-#' `mu` here genuinely is the family's mean, so brms's "must have a `mu`
-#' parameter" requirement (see [skellam1()] Details) is satisfied
-#' directly — no forced reinterpretation.
+#' @section Parameter named mu:
+#' In `dlaplace2()`, the parameter named `mu` is the location, so the
+#' requirement of `brms::custom_family()` for a parameter named `"mu"` (see
+#' [skellam1()]) is met without reinterpreting it.
 #'
-#' **No constraint coupling mu and sigma.** This is a genuine structural
-#' difference from `skellam2()`, which structurally requires `sigma >=
-#' |mu|` (the Skellam family's actual mean/variance relationship — see
-#' [skellam2()] Details). The discrete Laplace has no such relationship:
-#' `mu` and `sigma` are free, independent parameters. Fitting
-#' `skellam2()` against `dlaplace2()` compares a model where bias and
-#' spread are structurally coupled against one where they are not. This
-#' package supplies both families for that comparison. Do not impose any
-#' artificial coupling here.
+#' @section Independence of mu and sigma:
+#' `skellam2()` requires `sigma^2 >= |mu|`, the relation between the
+#' variance and the mean of a Skellam variable (see [skellam2()]). The
+#' discrete Laplace distribution has no such relation, and in `dlaplace2()`
+#' the parameters `mu` and `sigma` vary independently. Fitting both
+#' `skellam2()` and `dlaplace2()` to the same data therefore compares a
+#' model in which the bias and the spread of the difference are coupled
+#' with a model in which they are not. A constraint between `mu` and `sigma`
+#' in `dlaplace2()` would remove that contrast.
 #'
-#' **sigma-to-b conversion.** Same as `dlaplace1()`: `b = sigma /
-#' sqrt(2)`. `mu` is passed straight through to
-#' `double_exponential_lcdf`'s own location argument (it takes location
-#' and scale directly, like `normal_lcdf`), so no manual shift of `z` is
-#' needed in the Stan code.
+#' @section Conversion from sigma to b:
+#' As in `dlaplace1()`, `b = sigma / sqrt(2)`, and `sigma` is the SD of the
+#' continuous distribution before discretisation. `double_exponential_lcdf`
+#' takes the location as an argument, as `normal_lcdf` does, so `mu` is
+#' passed to it directly and the Stan code does not shift `z`.
+#'
+#' @section Mean of the discretised distribution:
+#' The mean of the discretised distribution equals `mu` when `mu` is an
+#' integer or a half-integer. For other values of `mu`, the mean differs
+#' from `mu` by up to 0.015 at `sigma = 1`, 0.054 at `sigma = 0.5` and 0.14
+#' at `sigma = 0.25`; the largest differences occur near `mu = 0.3` and
+#' `mu = 0.7` modulo 1. `mu` is therefore the location of the continuous
+#' distribution before discretisation, not the mean of the discretised one.
+#' `posterior_epred_dlaplace2()` returns the mean.
 #'
 #' @return
 #' `dlaplace2()` returns a brms `custom_family` object.
@@ -623,10 +586,12 @@ posterior_epred_dlaplace1 <- function(prep) {
 #' for `dlaplace2_lpmf`. `log_lik_dlaplace2()` returns a numeric vector of
 #' log-densities, one per posterior draw, for observation `i`.
 #' `posterior_predict_dlaplace2()` returns a vector of simulated
-#' differences, one per posterior draw, for observation `i`, drawn subject
-#' to that row's `resp_trunc()` bounds where it has any.
+#' differences, one per posterior draw, for observation `i`, drawn within
+#' the truncation bounds of that observation if it has any.
 #' `posterior_epred_dlaplace2()` returns a draws x observations matrix of
-#' means, taken over the truncated distribution on any row that is bounded.
+#' means of the discretised distribution: computed in closed form on rows
+#' without truncation bounds, and by summing the truncated PMF on bounded
+#' rows.
 #' @seealso [dlaplace2_lccdf_stanvars()] for truncation; [dlaplace1()] for the
 #'   fixed-mean version; [skellam2()] for the coupled comparison;
 #'   [dnorm2()] for the light-tailed alternative.
@@ -647,15 +612,15 @@ dlaplace2_stanvars <- function() {
   brms::stanvar(block = "functions", scode = dlaplace2_stan_funs)
 }
 
-#' Truncated-discrete-Laplace log-CCDF for use with brms's resp_trunc()
-#' (free location and scale)
+#' Log-CCDF of the discrete Laplace distribution with free location, for
+#' truncated fits
 #'
 #' @description
 #' Returns a `brms::stanvar()` defining `dlaplace2_lccdf`, the log
-#' complementary CDF of the discrete Laplace(mu, sigma) family --
-#' `dlaplace2_lccdf(y, mu, sigma)` = log P(Z > y). Same role, calling
-#' convention, and no-threshold-argument rationale as
-#' `dlaplace1_lccdf_stanvars()`.
+#' complementary CDF of the discrete Laplace(mu, sigma) distribution:
+#' `dlaplace2_lccdf(y, mu, sigma)` = log P(Z > y).
+#' `dlaplace2_lccdf_stanvars()` is used in the same way as
+#' [dlaplace1_lccdf_stanvars()], and likewise takes no threshold argument.
 #'
 #' @return A `brms::stanvars` object defining the `dlaplace2_lccdf` Stan
 #'   function, for combining with `dlaplace2_stanvars()` via `+`.
@@ -703,11 +668,13 @@ posterior_predict_dlaplace2 <- function(i, prep, ...) {
 #' @export
 #' @keywords internal
 posterior_epred_dlaplace2 <- function(prep) {
-  mu  <- brms::get_dpar(prep, "mu")  # E[discrete Laplace(mu, sigma)] = mu
-  out <- mu
+  # E[Z] equals mu only for integer or half-integer mu; see .dlaplace_mean()
+  # in truncation.R for the closed form used here.
+  mu    <- brms::get_dpar(prep, "mu")
+  sigma <- brms::get_dpar(prep, "sigma")
+  out   <- .dlaplace_mean(mu, sigma)
   lb_full <- prep$data$lb; ub_full <- prep$data$ub
   if (is.null(lb_full) && is.null(ub_full)) return(out)
-  sigma <- brms::get_dpar(prep, "sigma")
   nobs <- ncol(mu)
   lb_obs <- .get_bound(prep, "lb", seq_len(nobs))
   ub_obs <- .get_bound(prep, "ub", seq_len(nobs))
@@ -727,45 +694,42 @@ posterior_epred_dlaplace2 <- function(prep) {
 #' Discrete-normal custom family for brms (location 0, free scale)
 #'
 #' @description
-#' Returns a brms custom family for the discrete normal distribution,
-#' location fixed at 0, discretised from the continuous Normal(0, sigma)
-#' via CDF differencing: `P(Z=z) = F(z+0.5) - F(z-0.5)`. One parameter,
-#' sigma (link = "log"), the SD; the mean is always zero. Same
-#' CDF-differencing pattern as `dlaplace1()`, using Stan's built-in
-#' `normal_lcdf`/`normal_lccdf` directly -- no Bessel function and no
-#' iteration cap needed, but see the cancellation note below for a
-#' branch this family's PMF does need.
+#' Returns a brms custom family for the discrete normal distribution with
+#' location fixed at 0, obtained from the continuous Normal(0, sigma) by CDF
+#' differencing: `P(Z = z) = F(z + 0.5) - F(z - 0.5)`. The single parameter
+#' is `sigma` (log link), the SD of the continuous distribution before
+#' discretisation; the mean is zero. The PMF and CCDF are closed-form: the
+#' Stan code computes the PMF with `normal_lcdf` for `z < 0` and with
+#' `erfc()` for `z >= 0`, and the CCDF with `erfc()` (see "Evaluation in the
+#' upper tail"). As in `dlaplace1()`, they require no Bessel function and
+#' no iteration cap.
 #'
 #' Use in a brm() call as:
 #'   brm(y ~ ..., family = dnorm1(), stanvars = dnorm1_stanvars(), data = ...)
 #'
-#' @details
-#' **Naming note.** Same forced naming as `skellam1()`/`dlaplace1()`:
-#' `brms::custom_family()` requires a dpar literally named `"mu"`; here
-#' it represents sigma (the SD), not a mean. See [skellam1()] Details for
-#' the full rationale.
+#' @section Parameter named mu:
+#' As in `skellam1()` and `dlaplace1()`, `brms::custom_family()` requires a
+#' parameter named `"mu"`, and in `dnorm1()` that parameter is `sigma`, the
+#' SD, not a mean. See [skellam1()] for the consequences for formulas and
+#' priors.
 #'
-#' **No scale conversion needed.** Unlike `dlaplace1()`, where Stan's
-#' `double_exponential_lcdf` expects the continuous Laplace's own scale
-#' `b` (requiring `b = sigma / sqrt(2)` first), the continuous normal's
-#' own SD parameter *is* sigma directly -- `sigma` is passed straight to
-#' `normal_lcdf`/`normal_lccdf` with no intermediate conversion.
+#' @section Scale parameter:
+#' `sigma` is the SD of the continuous normal distribution and enters the
+#' normal CDF unchanged. `dlaplace1()`, by contrast, converts `sigma` to the
+#' Laplace scale `b` first. The SD of the discretised distribution is close
+#' to `sqrt(sigma^2 + 1/12)` for `sigma >= 0.5`: larger than `sigma` by 4.1%
+#' at `sigma = 1` and by 1.0% at `sigma = 2`.
 #'
-#' **Cancellation in the PMF, fixed by branching on z's sign.** The
-#' naive `log_diff_exp(normal_lcdf(z+0.5), normal_lcdf(z-0.5))` fails
-#' once `z` is far enough into the positive tail that both `normal_lcdf`
-#' calls round to the same double (both within machine epsilon of
-#' `log(1)=0`) -- confirmed to occur at only ~10 SDs out, well inside
-#' this package's realistic-but-stressed test range for the other
-#' families, and far sooner than the analogous direct-subtraction form
-#' in `dlaplace1()` (the normal's thinner tail saturates near 1 much
-#' faster per SD than the Laplace's). Fixed in `dnorm1_lpmf` (and the
-#' R-side `log_lik_dnorm1`) by differencing two *survival* values
-#' (`normal_lccdf`, both small and hence distinguishable) instead of two
-#' *CDF* values when `z >= 0` -- the same exact-survival-form idea
-#' `dlaplace1_lccdf`/`dlaplace2_lccdf` already use, applied here to the
-#' PMF rather than the CCDF, since CDF differencing is itself the
-#' operation that creates the cancellation risk in the first place.
+#' @section Evaluation in the upper tail:
+#' The Stan function `normal_lccdf` returns negative infinity for
+#' standardised arguments above about 8.25 (stan-dev/math#1985).
+#' `dnorm1_lccdf` therefore computes the upper-tail probability as
+#' `0.5 * erfc(x / (sigma * sqrt(2)))`, and `dnorm1_lpmf` uses the same form
+#' for `z >= 0`. In R, `log_lik_dnorm1()` uses `pnorm(lower.tail = FALSE)`
+#' for `z >= 0`, because `log(pnorm(z + 0.5) - pnorm(z - 0.5))` evaluates
+#' to `log(0)` once `z` exceeds about 8.5 SDs. Both the Stan and the R
+#' log-PMF are accurate until they underflow below about -708, near 38 SDs
+#' from 0.
 #'
 #' @return
 #' `dnorm1()` returns a brms `custom_family` object. `dnorm1_stanvars()`
@@ -773,8 +737,8 @@ posterior_epred_dlaplace2 <- function(prep) {
 #' `log_lik_dnorm1()` returns a numeric vector of log-densities, one per
 #' posterior draw, for observation `i`. `posterior_predict_dnorm1()` returns
 #' a vector of simulated differences, one per posterior draw, for
-#' observation `i`, drawn subject to that row's `resp_trunc()` bounds where
-#' it has any. `posterior_epred_dnorm1()` returns a draws x observations
+#' observation `i`, drawn within the truncation bounds of that observation
+#' if it has any. `posterior_epred_dnorm1()` returns a draws x observations
 #' matrix of means, taken over the truncated distribution on any row that is
 #' bounded.
 #' @seealso [dnorm1_lccdf_stanvars()] for truncation; [dnorm2()] for the
@@ -797,17 +761,18 @@ dnorm1_stanvars <- function() {
   brms::stanvar(block = "functions", scode = dnorm1_stan_funs)
 }
 
-#' Truncated-discrete-normal log-CCDF for use with brms's resp_trunc()
+#' Log-CCDF of the discrete normal distribution with location 0, for
+#' truncated fits
 #'
 #' @description
 #' Returns a `brms::stanvar()` defining `dnorm1_lccdf`, the log
-#' complementary CDF of the discrete Normal(0, sigma) family --
-#' `dnorm1_lccdf(y, sigma)` = log P(Z > y). Same role and calling
-#' convention as `dlaplace1_lccdf_stanvars()`, but built directly on
-#' Stan's `normal_lccdf` (an upper-tail log-survival function Stan
-#' exposes as a built-in for the normal), rather than a
-#' `log1m_exp(lcdf(...))` composition -- no threshold argument and no
-#' large-argument failure mode to guard against.
+#' complementary CDF of the discrete Normal(0, sigma) distribution:
+#' `dnorm1_lccdf(y, sigma)` = log P(Z > y). `dnorm1_lccdf_stanvars()` is
+#' used in the same way as [dlaplace1_lccdf_stanvars()]. `dnorm1_lccdf`
+#' computes the upper tail with `erfc()` rather than with the Stan function
+#' `normal_lccdf`, which returns negative infinity for standardised
+#' arguments above about 8.25 (see [dnorm1()]). `dnorm1_lccdf_stanvars()`
+#' takes no threshold argument.
 #'
 #' @return A `brms::stanvars` object defining the `dnorm1_lccdf` Stan
 #'   function, for combining with `dnorm1_stanvars()` via `+`.
@@ -829,9 +794,9 @@ log_lik_dnorm1 <- function(i, prep) {
   sigma <- brms::get_dpar(prep, "mu", i = i)  # brms dpar name "mu" is sigma here -- see Details
   z     <- prep$data$Y[i]
   # Not simply log(pnorm(z+0.5) - pnorm(z-0.5)): both terms round to
-  # exactly 1.0 once z is ~10 SDs into the positive tail, giving log(0) =
-  # -Inf -- confirmed to occur well inside this package's "realistic but
-  # stressed" range, unlike the analogous direct-subtraction form in
+  # exactly 1.0 from about 9 SDs into the positive tail, giving log(0) =
+  # -Inf -- inside this package's "realistic but stressed" test range,
+  # unlike the analogous direct-subtraction form in
   # log_lik_dlaplace1 (the Laplace's heavier tail keeps that one accurate
   # much further out). Same z >= 0 branch as dnorm1_lpmf in
   # stanfunctions.R: difference two survival probabilities (small, hence
@@ -889,33 +854,40 @@ posterior_epred_dnorm1 <- function(prep) {
 #' Discrete-normal custom family for brms (free location and scale)
 #'
 #' @description
-#' Returns a brms custom family for the discrete normal distribution
-#' with both location (`mu`, link = "identity") and scale (`sigma`,
-#' link = "log") free, discretised via CDF differencing exactly as
-#' `dnorm1()` but centred at `mu` instead of fixed at 0:
-#' `P(Z=z) = F(z+0.5) - F(z-0.5)`, `F` the continuous Normal(mu, sigma)
-#' CDF.
+#' Returns a brms custom family for the discrete normal distribution with
+#' free location (`mu`, identity link) and free scale (`sigma`, log link),
+#' obtained by CDF differencing as in `dnorm1()` but centred at `mu` rather
+#' than 0: `P(Z = z) = F(z + 0.5) - F(z - 0.5)`, where `F` is the CDF of the
+#' continuous Normal(mu, sigma).
 #'
 #' Use in a brm() call as:
 #'   brm(y ~ ..., family = dnorm2(), stanvars = dnorm2_stanvars(), data = ...)
 #'
-#' @details
-#' **No naming workaround needed.** Unlike `skellam1()`/`dlaplace1()`/
-#' `dnorm1()`, `mu` here genuinely is the family's mean, so brms's "must
-#' have a `mu` parameter" requirement (see [skellam1()] Details) is
-#' satisfied directly -- no forced reinterpretation.
+#' @section Parameter named mu:
+#' In `dnorm2()`, the parameter named `mu` is the location, so the
+#' requirement of `brms::custom_family()` for a parameter named `"mu"` (see
+#' [skellam1()]) is met without reinterpreting it.
 #'
-#' **No constraint coupling mu and sigma.** Same structural contrast with
-#' `skellam2()` already documented for [dlaplace2()] (see its Details):
-#' `mu` and `sigma` are free, independent parameters here, by
-#' design. Fitting `skellam2()` against `dlaplace2()` and `dnorm2()`
-#' compares a model where bias and spread are structurally coupled
-#' against ones where they are not; this package supplies all three
-#' families for that comparison.
+#' @section Independence of mu and sigma:
+#' As in [dlaplace2()], `mu` and `sigma` vary independently, with no
+#' constraint between them. Fitting `skellam2()`, `dlaplace2()` and
+#' `dnorm2()` to the same data compares a model in which the bias and the
+#' spread of the difference are coupled with two models in which they are
+#' not.
 #'
-#' **Cancellation in the PMF.** Same issue and fix as `dnorm1()` (see its
-#' Details), generalised to branch on whether `z` is on the far side of
-#' `mu` rather than of 0.
+#' @section Evaluation in the upper tail:
+#' As in [dnorm1()], the PMF and CCDF compute the upper tail with `erfc()`,
+#' with the PMF branching on whether `z` lies above or below `mu` rather
+#' than 0.
+#'
+#' @section Mean of the discretised distribution:
+#' The mean of the discretised distribution equals `mu` when `mu` is an
+#' integer or a half-integer. For other values of `mu`, the mean differs
+#' from `mu` by less than 1e-9 at `sigma = 1` and by less than 5e-6 at
+#' `sigma = 0.75`, but by up to 0.0023 at `sigma = 0.5` and 0.093 at
+#' `sigma = 0.25`. `mu` is therefore the location of the continuous
+#' distribution before discretisation, not the mean of the discretised one.
+#' `posterior_epred_dnorm2()` returns the mean.
 #'
 #' @return
 #' `dnorm2()` returns a brms `custom_family` object. `dnorm2_stanvars()`
@@ -923,10 +895,11 @@ posterior_epred_dnorm1 <- function(prep) {
 #' `log_lik_dnorm2()` returns a numeric vector of log-densities, one per
 #' posterior draw, for observation `i`. `posterior_predict_dnorm2()` returns
 #' a vector of simulated differences, one per posterior draw, for
-#' observation `i`, drawn subject to that row's `resp_trunc()` bounds where
-#' it has any. `posterior_epred_dnorm2()` returns a draws x observations
-#' matrix of means, taken over the truncated distribution on any row that is
-#' bounded.
+#' observation `i`, drawn within the truncation bounds of that observation
+#' if it has any. `posterior_epred_dnorm2()` returns a draws x observations
+#' matrix of means of the discretised distribution: computed from a
+#' rapidly converging series on rows without truncation bounds, and by
+#' summing the truncated PMF on bounded rows.
 #' @seealso [dnorm2_lccdf_stanvars()] for truncation; [dnorm1()] for the
 #'   fixed-mean version; [skellam2()] for the coupled comparison;
 #'   [dlaplace2()] for the heavy-tailed alternative.
@@ -947,15 +920,15 @@ dnorm2_stanvars <- function() {
   brms::stanvar(block = "functions", scode = dnorm2_stan_funs)
 }
 
-#' Truncated-discrete-normal log-CCDF for use with brms's resp_trunc()
-#' (free location and scale)
+#' Log-CCDF of the discrete normal distribution with free location, for
+#' truncated fits
 #'
 #' @description
 #' Returns a `brms::stanvar()` defining `dnorm2_lccdf`, the log
-#' complementary CDF of the discrete Normal(mu, sigma) family --
-#' `dnorm2_lccdf(y, mu, sigma)` = log P(Z > y). Same role, calling
-#' convention, and no-threshold-argument rationale as
-#' `dnorm1_lccdf_stanvars()`.
+#' complementary CDF of the discrete Normal(mu, sigma) distribution:
+#' `dnorm2_lccdf(y, mu, sigma)` = log P(Z > y). `dnorm2_lccdf_stanvars()` is
+#' used in the same way as [dnorm1_lccdf_stanvars()], and likewise takes no
+#' threshold argument.
 #'
 #' @return A `brms::stanvars` object defining the `dnorm2_lccdf` Stan
 #'   function, for combining with `dnorm2_stanvars()` via `+`.
@@ -1007,11 +980,13 @@ posterior_predict_dnorm2 <- function(i, prep, ...) {
 #' @export
 #' @keywords internal
 posterior_epred_dnorm2 <- function(prep) {
-  mu  <- brms::get_dpar(prep, "mu")  # E[discrete Normal(mu, sigma)] = mu
-  out <- mu
+  # E[Z] equals mu only for integer or half-integer mu; see .dnorm_mean()
+  # in truncation.R for the series used here.
+  mu    <- brms::get_dpar(prep, "mu")
+  sigma <- brms::get_dpar(prep, "sigma")
+  out   <- .dnorm_mean(mu, sigma)
   lb_full <- prep$data$lb; ub_full <- prep$data$ub
   if (is.null(lb_full) && is.null(ub_full)) return(out)
-  sigma <- brms::get_dpar(prep, "sigma")
   nobs <- ncol(mu)
   lb_obs <- .get_bound(prep, "lb", seq_len(nobs))
   ub_obs <- .get_bound(prep, "ub", seq_len(nobs))

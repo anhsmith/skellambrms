@@ -69,7 +69,7 @@ test_that("mu shifts the distribution exactly: r_lpmf_dl2(z, mu, sigma) == r_lpm
 })
 
 test_that("mu and sigma are not coupled: small sigma with large |mu| is valid (unlike skellam2)", {
-  # No sigma >= |mu| floor for this family -- confirm a tiny sigma
+  # No sigma^2 >= |mu| floor for this family -- confirm a tiny sigma
   # combined with a large mu produces a well-defined, normalised PMF.
   mu <- 1000
   sigma <- 0.5
@@ -424,6 +424,38 @@ test_that("posterior_epred_dlaplace2 leaves untruncated observations exactly at 
   )
   epred <- posterior_epred_dlaplace2(prep)
   expect_equal(epred, prep$dpars$mu)
+})
+
+# The mean of round(X) equals mu only for integer or half-integer mu, so the
+# test above (mu = 5 and -2) cannot distinguish the mean from mu. These two
+# tests use non-integer mu and small sigma, where the two differ.
+test_that("posterior_epred_dlaplace2 equals the mean of the PMF at non-integer mu", {
+  mu_vals    <- c(0.29, -1.71, 2.4, 0.13)
+  sigma_vals <- c(0.25, 0.5, 1, 3)
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(mu_vals, nrow = 1), sigma = matrix(sigma_vals, nrow = 1)),
+    Y = rep(0, 4)
+  )
+  epred <- posterior_epred_dlaplace2(prep)
+  support <- -60:60
+  pmf_mean <- mapply(function(m, s) {
+    sum(support * exp(dlaplace2_lpmf_r(support, m, s)))
+  }, mu_vals, sigma_vals)
+  expect_equal(epred[1, ], pmf_mean, tolerance = 1e-10)
+  expect_gt(abs(epred[1, 1] - mu_vals[1]), 1e-3)
+})
+
+test_that("posterior_epred_dlaplace2 equals the mean of posterior_predict draws", {
+  set.seed(20261004)
+  n <- 2e5
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(0.29, nrow = n, ncol = 1),
+                 sigma = matrix(0.5, nrow = n, ncol = 1)),
+    Y = 0
+  )
+  draws <- posterior_predict_dlaplace2(1, prep)
+  epred <- posterior_epred_dlaplace2(prep)[1, 1]
+  expect_lt(abs(mean(draws) - epred), 4 * sd(draws) / sqrt(n))
 })
 
 # -----------------------------------------------------------------------

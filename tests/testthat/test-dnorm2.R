@@ -411,6 +411,38 @@ test_that("posterior_epred_dnorm2 leaves untruncated observations exactly at mu 
   expect_equal(epred, prep$dpars$mu)
 })
 
+# The mean of round(X) equals mu only for integer or half-integer mu, so the
+# test above (mu = 5 and -2) cannot distinguish the mean from mu. These two
+# tests use non-integer mu and small sigma, where the two differ.
+test_that("posterior_epred_dnorm2 equals the mean of the PMF at non-integer mu", {
+  mu_vals    <- c(0.29, -1.71, 2.4, 0.13)
+  sigma_vals <- c(0.25, 0.4, 0.05, 1)
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(mu_vals, nrow = 1), sigma = matrix(sigma_vals, nrow = 1)),
+    Y = rep(0, 4)
+  )
+  epred <- posterior_epred_dnorm2(prep)
+  support <- -60:60
+  pmf_mean <- mapply(function(m, s) {
+    sum(support * exp(dnorm2_lpmf_r(support, m, s)))
+  }, mu_vals, sigma_vals)
+  expect_equal(epred[1, ], pmf_mean, tolerance = 1e-10)
+  expect_gt(abs(epred[1, 1] - mu_vals[1]), 1e-3)
+})
+
+test_that("posterior_epred_dnorm2 equals the mean of posterior_predict draws", {
+  set.seed(20261004)
+  n <- 2e5
+  prep <- make_synthetic_prep(
+    dpars = list(mu = matrix(0.29, nrow = n, ncol = 1),
+                 sigma = matrix(0.5, nrow = n, ncol = 1)),
+    Y = 0
+  )
+  draws <- posterior_predict_dnorm2(1, prep)
+  epred <- posterior_epred_dnorm2(prep)[1, 1]
+  expect_lt(abs(mean(draws) - epred), 4 * sd(draws) / sqrt(n))
+})
+
 # -----------------------------------------------------------------------
 # ifelse() length-collapse regression -- see test-dlaplace1.R for the full
 # explanation. dnorm2_lpmf_r's test (z >= mu) is built from z and mu, so a

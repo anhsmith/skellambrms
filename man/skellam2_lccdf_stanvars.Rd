@@ -2,14 +2,13 @@
 % Please edit documentation in R/family.R
 \name{skellam2_lccdf_stanvars}
 \alias{skellam2_lccdf_stanvars}
-\title{Truncated-asymmetric-Skellam log-CCDF for use with brms's resp_trunc()}
+\title{Log-CCDF of the asymmetric Skellam distribution, for truncated fits}
 \usage{
 skellam2_lccdf_stanvars(normal_approx_threshold = 100)
 }
 \arguments{
-\item{normal_approx_threshold}{Numeric scalar; see
-\code{skellam1_lccdf_stanvars()} for how to choose this for your data.
-Default \code{100}.}
+\item{normal_approx_threshold}{Numeric scalar, compared with
+\code{mu_skellam} as described above. Default \code{100}.}
 }
 \value{
 A \code{brms::stanvars} object defining the \code{skellam2_lccdf} Stan
@@ -18,15 +17,17 @@ function, for combining with \code{skellam2_stanvars()} via \code{+}.
 \description{
 Returns a \code{brms::stanvar()} defining \code{skellam2_lccdf}, the log
 complementary CDF of the asymmetric Skellam(theta1, theta2)
-distribution — \code{skellam2_lccdf(y, mu, sigmaexcess)} = log P(delta > y).
-Same role and calling convention as \code{skellam1_lccdf_stanvars()}; see
-that function's documentation for how \code{resp_trunc()} locates it and
-for the rationale behind the normal-approximation threshold (here
-checked against \code{mu_skellam = (theta1 + theta2) / 2}, the direct
-generalisation of skellam1's threshold quantity to the asymmetric
-case — see skellam2_lccdf_stan() in stanfunctions.R).
+distribution: \code{skellam2_lccdf(y, mu, sigmaexcess)} = log P(delta > y).
+\code{skellam2_lccdf_stanvars()} is used in the same way as
+\code{\link[=skellam1_lccdf_stanvars]{skellam1_lccdf_stanvars()}}, and the documentation of
+\code{skellam1_lccdf_stanvars()} describes how \code{resp_trunc()} finds the
+function, the normal approximation and the exact sum. In
+\code{skellam2_lccdf}, the threshold is compared with
+\code{mu_skellam = (theta1 + theta2) / 2}, which equals the \code{mu_skellam} of
+\code{skellam1()} when \code{theta1 = theta2}, and the exact sum changes from the
+upper to the lower tail at \code{y = mu} rather than at \code{y = 0}.
 }
 \seealso{
 \code{\link[=skellam2]{skellam2()}} for the family itself; \code{\link[=skellam1_lccdf_stanvars]{skellam1_lccdf_stanvars()}} for
-the normal-approximation threshold and how to choose it.
+the normal approximation and the exact sum.
 }

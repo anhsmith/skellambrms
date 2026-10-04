@@ -18,13 +18,13 @@ skellam1_stan_funs <- "
 # the same derived quantity as skellam1_lpmf above. The normal-
 # approximation threshold is templated in at call time rather than fixed,
 # since the right value depends on the data's plausible mu_skellam range
-# -- see skellam1_lccdf_stanvars() for the rationale and how to choose it
-# (the threshold is on the mu_skellam scale, not sigma, so existing
-# calibration advice applies unchanged under the reparameterisation).
-# The iteration cap (500) and early-exit tolerance are fixed: they guard
-# a confirmed std::bad_alloc crash in log_modified_bessel_first_kind and
-# a confirmed multi-GB memory blowup at extreme mu_skellam, independent of
-# where the normal-approximation threshold is set.
+# (the threshold is on the mu_skellam scale, not sigma). The iteration cap
+# (500) and early-exit tolerance are fixed. Below the threshold, the exact
+# sum runs away from the bulk of the distribution: upward from y + 1 for
+# y >= 0, and downward from y for y < 0, returning log(1 - P(delta <= y)).
+# Up to 0.6.0 it always ran upward from y + 1, and for y more than about
+# 495 below the bulk the 500-term cap ended it before it reached the
+# probability mass; see .skellam_tailsum_lccdf() in truncation.R.
 skellam1_lccdf_stan <- function(normal_approx_threshold = 100) {
   sprintf("
   real skellam1_lccdf(int y, real sigma) {
@@ -49,6 +49,24 @@ skellam1_lccdf_stan <- function(normal_approx_threshold = 100) {
       return log(0.5) + log(erfc(z / sqrt(2)));
     }
     real acc = negative_infinity();
+    // Sum away from the bulk so that the terms shrink: below the mean (0),
+    // sum the lower tail downward from y and return log(1 - P(delta <= y)).
+    // See .skellam_tailsum_lccdf() in truncation.R.
+    if (y < 0) {
+      int j = y;
+      int low_cap = y - 500;
+      while (j > low_cap) {
+        real lp_j = -2 * mu_skellam + log_modified_bessel_first_kind(abs(j), 2 * mu_skellam);
+        real new_acc = log_sum_exp(acc, lp_j);
+        if (lp_j < new_acc - 40 && j < y - 5) {
+          acc = new_acc;
+          break;
+        }
+        acc = new_acc;
+        j -= 1;
+      }
+      return log1m_exp(acc);
+    }
     int k = y + 1;
     int hard_cap = y + 1 + 500;
     while (k < hard_cap) {
@@ -119,6 +137,25 @@ skellam2_lccdf_stan <- function(normal_approx_threshold = 100) {
       return log(0.5) + log(erfc(z / sqrt(2)));
     }
     real acc = negative_infinity();
+    // Sum away from the bulk so that the terms shrink: below the mean (mu),
+    // sum the lower tail downward from y and return log(1 - P(delta <= y)).
+    // See .skellam_tailsum_lccdf() in truncation.R.
+    if (y < mu) {
+      int j = y;
+      int low_cap = y - 500;
+      while (j > low_cap) {
+        real lp_j = -theta1 - theta2 + (j / 2.0) * log(theta1 / theta2)
+                    + log_modified_bessel_first_kind(abs(j), 2 * sqrt(theta1 * theta2));
+        real new_acc = log_sum_exp(acc, lp_j);
+        if (lp_j < new_acc - 40 && j < y - 5) {
+          acc = new_acc;
+          break;
+        }
+        acc = new_acc;
+        j -= 1;
+      }
+      return log1m_exp(acc);
+    }
     int k = y + 1;
     int hard_cap = y + 1 + 500;
     while (k < hard_cap) {
@@ -180,7 +217,7 @@ dlaplace1_lccdf_stan <- "
 
 # Stan function block for the discrete-Laplace log-PMF with free location
 # AND free scale -- no constraint coupling mu and sigma (a genuine
-# structural difference from skellam2's sigma >= |mu| floor: fitting an
+# structural difference from skellam2's sigma^2 >= |mu| floor: fitting an
 # asymmetric-Skellam model against a free-location discrete-Laplace one
 # compares a model where bias and spread are structurally coupled
 # against one where they are independent, so no constraint is imposed
@@ -213,20 +250,17 @@ dlaplace2_lccdf_stan <- "
 # normal's own SD *is* sigma (no b-style intermediate parameter), so
 # sigma is passed straight through.
 #
-# NOT simply log_diff_exp(normal_lcdf(z+0.5|0,sigma), normal_lcdf(z-0.5|0,sigma))
-# on both sides -- confirmed that naive form catastrophically cancels
-# once z is far enough into the *positive* tail that normal_lcdf(z-0.5)
-# and normal_lcdf(z+0.5) both round to the same double (both within
-# machine epsilon of log(1)=0), at which point log_diff_exp(a,a) = -inf
-# regardless of how the true (tiny but distinct) difference should come
-# out. This isn't a remote edge case: it was confirmed to occur at only
-# ~10 SDs out for sigma=1 -- inside this package's existing
-# "realistic-but-stressed" test range for the other families (e.g.
-# sigma up to 100, k within 10 SDs; see test-skellam2.R /
-# test-dlaplace1.R). Fixed the same way dlaplace1/dlaplace2's lccdf uses
-# the exact survival form for x>=0 rather than 1-F(x): for z on the far
-# side of the mean (z>=0 here), difference two *survival* values instead
-# of two *CDF* values (both near 1 and hence not distinguishable).
+# For z >= 0, the PMF is computed as the difference of two survival
+# probabilities rather than of two CDF values. The CDF form,
+# log_diff_exp(normal_lcdf(z+0.5|0,sigma), normal_lcdf(z-0.5|0,sigma)), was
+# believed to cancel at about 10 SDs, but tested on 4 October 2026 under
+# rstan 2.32 (StanHeaders 2.32.10) and CmdStan 2.37 it is accurate in the
+# upper tail: normal_lcdf returns log CDF values such as -1.1e-19 at 9 SDs
+# rather than rounding them to 0, and the CDF form matched the true log-PMF
+# to 38 SDs, where both forms underflow below -708. The survival form is
+# kept because it is equally accurate and matches log_lik_dnorm1() in R,
+# where the cancellation is real: log(pnorm(z+0.5) - pnorm(z-0.5)) returns
+# -Inf from about 9 SDs.
 #
 # The survival values themselves are NOT computed via normal_lccdf,
 # despite that being Stan's built-in upper-tail log-survival function --
@@ -271,8 +305,7 @@ dnorm1_lccdf_stan <- "
 # before the erfc() argument, since erfc() itself takes no location/scale.
 #
 # Same z>=mu vs z<mu branch as dnorm1_lpmf above (centred on mu rather
-# than 0: the cancellation risk is about which side of the *mean* z
-# falls on, not the sign of z itself), and the same erfc()-based exact
+# than 0, to match log_lik_dnorm2() in R), and the same erfc()-based exact
 # survival form in place of the documented-broken normal_lccdf
 # (stan-dev/math#1985, see dnorm1_lpmf above for the citation).
 dnorm2_stan_funs <- "

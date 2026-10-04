@@ -199,6 +199,33 @@ test_that("Stan skellam2_lccdf matches package pskellam reference", {
   expect_lt(max(abs(diffs)), 1e-6)
 })
 
+# Far lower bounds and both sides of the mean; see the matching block in
+# test-lccdf.R for the fault in 0.6.0 that these tests cover.
+test_that("skellam2_lccdf_r is correct far below the bulk and either side of mu", {
+  expect_equal(suppressWarnings(skellam2_lccdf_r(c(-460, -500, -1000), 50, 2)), c(0, 0, 0),
+               tolerance = 1e-12)
+  expect_equal(suppressWarnings(skellam2_lccdf_r(c(-560, -600), -30, 3)), c(0, 0),
+               tolerance = 1e-12)
+  for (pr in list(c(3, 1), c(-4, 2), c(0.4, 0.3))) {
+    mu <- pr[1]; se <- pr[2]
+    s2 <- abs(mu) + se^2; t1 <- (s2 + mu) / 2; t2 <- (s2 - mu) / 2
+    y <- round(mu) + (-6:6)
+    expect_equal(skellam2_lccdf_r(y, mu, se),
+                 log(skellam::pskellam(y, t1, t2, lower.tail = FALSE)),
+                 tolerance = 1e-8)
+  }
+})
+
+test_that("Stan skellam2_lccdf is correct far below the bulk and either side of mu", {
+  skip_if_not(lccdf_ready, "rstan unavailable or Stan compilation failed")
+  vals <- vapply(c(-460L, -500L, -1000L), skellam2_lccdf, numeric(1),
+                 mu = 50, sigmaexcess = 2)
+  expect_equal(vals, c(0, 0, 0), tolerance = 1e-12)
+  y <- as.integer(-3 + (-6:6))
+  stan_vals <- vapply(y, function(k) skellam2_lccdf(k, -4, 2), numeric(1))
+  expect_equal(stan_vals, skellam2_lccdf_r(y, -4, 2), tolerance = 1e-10)
+})
+
 test_that("Stan skellam2_lccdf is numerically stable at large sigma (normal-approx branch)", {
   skip_if_not(lccdf_ready, "rstan unavailable or Stan compilation failed")
   # Realistic-but-stressed range: in the count data these families are built

@@ -24,41 +24,61 @@ posterior_epred_dlaplace2(prep)
 for \code{dlaplace2_lpmf}. \code{log_lik_dlaplace2()} returns a numeric vector of
 log-densities, one per posterior draw, for observation \code{i}.
 \code{posterior_predict_dlaplace2()} returns a vector of simulated
-differences, one per posterior draw, for observation \code{i}, drawn subject
-to that row's \code{resp_trunc()} bounds where it has any.
+differences, one per posterior draw, for observation \code{i}, drawn within
+the truncation bounds of that observation if it has any.
 \code{posterior_epred_dlaplace2()} returns a draws x observations matrix of
-means, taken over the truncated distribution on any row that is bounded.
+means of the discretised distribution: computed in closed form on rows
+without truncation bounds, and by summing the truncated PMF on bounded
+rows.
 }
 \description{
-Returns a brms custom family for the discrete Laplace distribution
-with both location (\code{mu}, link = "identity") and scale (\code{sigma},
-link = "log") free, discretised via CDF differencing exactly as
-\code{dlaplace1()} but centred at \code{mu} instead of fixed at 0:
-\code{P(Z=z) = F(z+0.5) - F(z-0.5)}, \code{F} the continuous Laplace(mu, b) CDF.
+Returns a brms custom family for the discrete Laplace distribution with
+free location (\code{mu}, identity link) and free scale (\code{sigma}, log link),
+obtained by CDF differencing as in \code{dlaplace1()} but centred at \code{mu}
+rather than 0: \code{P(Z = z) = F(z + 0.5) - F(z - 0.5)}, where \code{F} is the CDF
+of the continuous Laplace(mu, b).
 
 Use in a brm() call as:
 brm(y ~ ..., family = dlaplace2(), stanvars = dlaplace2_stanvars(), data = ...)
 }
-\details{
-\strong{No naming workaround needed.} Unlike \code{skellam1()}/\code{dlaplace1()},
-\code{mu} here genuinely is the family's mean, so brms's "must have a \code{mu}
-parameter" requirement (see \code{\link[=skellam1]{skellam1()}} Details) is satisfied
-directly — no forced reinterpretation.
+\section{Parameter named mu}{
 
-\strong{No constraint coupling mu and sigma.} This is a genuine structural
-difference from \code{skellam2()}, which structurally requires \verb{sigma >= |mu|} (the Skellam family's actual mean/variance relationship — see
-\code{\link[=skellam2]{skellam2()}} Details). The discrete Laplace has no such relationship:
-\code{mu} and \code{sigma} are free, independent parameters. Fitting
-\code{skellam2()} against \code{dlaplace2()} compares a model where bias and
-spread are structurally coupled against one where they are not. This
-package supplies both families for that comparison. Do not impose any
-artificial coupling here.
-
-\strong{sigma-to-b conversion.} Same as \code{dlaplace1()}: \code{b = sigma / sqrt(2)}. \code{mu} is passed straight through to
-\code{double_exponential_lcdf}'s own location argument (it takes location
-and scale directly, like \code{normal_lcdf}), so no manual shift of \code{z} is
-needed in the Stan code.
+In \code{dlaplace2()}, the parameter named \code{mu} is the location, so the
+requirement of \code{brms::custom_family()} for a parameter named \code{"mu"} (see
+\code{\link[=skellam1]{skellam1()}}) is met without reinterpreting it.
 }
+
+\section{Independence of mu and sigma}{
+
+\code{skellam2()} requires \verb{sigma^2 >= |mu|}, the relation between the
+variance and the mean of a Skellam variable (see \code{\link[=skellam2]{skellam2()}}). The
+discrete Laplace distribution has no such relation, and in \code{dlaplace2()}
+the parameters \code{mu} and \code{sigma} vary independently. Fitting both
+\code{skellam2()} and \code{dlaplace2()} to the same data therefore compares a
+model in which the bias and the spread of the difference are coupled
+with a model in which they are not. A constraint between \code{mu} and \code{sigma}
+in \code{dlaplace2()} would remove that contrast.
+}
+
+\section{Conversion from sigma to b}{
+
+As in \code{dlaplace1()}, \code{b = sigma / sqrt(2)}, and \code{sigma} is the SD of the
+continuous distribution before discretisation. \code{double_exponential_lcdf}
+takes the location as an argument, as \code{normal_lcdf} does, so \code{mu} is
+passed to it directly and the Stan code does not shift \code{z}.
+}
+
+\section{Mean of the discretised distribution}{
+
+The mean of the discretised distribution equals \code{mu} when \code{mu} is an
+integer or a half-integer. For other values of \code{mu}, the mean differs
+from \code{mu} by up to 0.015 at \code{sigma = 1}, 0.054 at \code{sigma = 0.5} and 0.14
+at \code{sigma = 0.25}; the largest differences occur near \code{mu = 0.3} and
+\code{mu = 0.7} modulo 1. \code{mu} is therefore the location of the continuous
+distribution before discretisation, not the mean of the discretised one.
+\code{posterior_epred_dlaplace2()} returns the mean.
+}
+
 \seealso{
 \code{\link[=dlaplace2_lccdf_stanvars]{dlaplace2_lccdf_stanvars()}} for truncation; \code{\link[=dlaplace1]{dlaplace1()}} for the
 fixed-mean version; \code{\link[=skellam2]{skellam2()}} for the coupled comparison;

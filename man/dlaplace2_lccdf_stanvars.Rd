@@ -2,8 +2,8 @@
 % Please edit documentation in R/family.R
 \name{dlaplace2_lccdf_stanvars}
 \alias{dlaplace2_lccdf_stanvars}
-\title{Truncated-discrete-Laplace log-CCDF for use with brms's resp_trunc()
-(free location and scale)}
+\title{Log-CCDF of the discrete Laplace distribution with free location, for
+truncated fits}
 \usage{
 dlaplace2_lccdf_stanvars()
 }
@@ -13,10 +13,10 @@ function, for combining with \code{dlaplace2_stanvars()} via \code{+}.
 }
 \description{
 Returns a \code{brms::stanvar()} defining \code{dlaplace2_lccdf}, the log
-complementary CDF of the discrete Laplace(mu, sigma) family --
-\code{dlaplace2_lccdf(y, mu, sigma)} = log P(Z > y). Same role, calling
-convention, and no-threshold-argument rationale as
-\code{dlaplace1_lccdf_stanvars()}.
+complementary CDF of the discrete Laplace(mu, sigma) distribution:
+\code{dlaplace2_lccdf(y, mu, sigma)} = log P(Z > y).
+\code{dlaplace2_lccdf_stanvars()} is used in the same way as
+\code{\link[=dlaplace1_lccdf_stanvars]{dlaplace1_lccdf_stanvars()}}, and likewise takes no threshold argument.
 }
 \seealso{
 \code{\link[=dlaplace2]{dlaplace2()}} for the family itself; \code{\link[=dlaplace1_lccdf_stanvars]{dlaplace1_lccdf_stanvars()}} for

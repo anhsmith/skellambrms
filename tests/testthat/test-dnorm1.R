@@ -13,8 +13,8 @@
 # file: a naive log(pnorm(z+0.5,sd=sigma) - pnorm(z-0.5,sd=sigma)) (or
 # its log-space cousin using pnorm(..., log.p = TRUE) on both terms)
 # catastrophically cancels once z is far enough into the positive tail
-# that both pnorm() calls round to the same double -- confirmed to occur
-# at only ~10 SDs out for sigma=1, *inside* this package's own
+# that both pnorm() calls round to the same double -- this occurs from
+# about 9 SDs out for sigma=1, *inside* this package's own
 # realistic-but-stressed test range for the other families (sigma up to
 # 100, k within 10 SDs of the centre). The reference below fixes this by
 # differencing two *survival* values (pnorm(..., lower.tail=FALSE)) when

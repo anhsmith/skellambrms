@@ -1,15 +1,11 @@
 # Version and year are taken from DESCRIPTION so there is one source of truth;
 # bumping Version/Date is enough to keep citation() current.
 #
-# DOI. Zenodo mints two. 10.5281/zenodo.22231870 is the concept DOI, which
-# always resolves to the newest archived version and is what the README badge
-# points at; it never changes. 10.5281/zenodo.22231871 is the version DOI for
-# 0.6.0 specifically, and it is the one used below, because this entry cites a
-# stated package version rather than the package in general.
-#
-# At the next release, update `doi` and `textVersion` to that release's version
-# DOI, which Zenodo mints when the GitHub release is published. Leave the README
-# badge alone: the concept DOI covers every version.
+# DOI. The concept DOI below, 10.5281/zenodo.22231870, resolves to whichever
+# version is latest, so it does not change when a new release is archived and
+# needs no edit at each release. It is also the DOI the README badge points at.
+# The DOI of one particular release is on the Zenodo record for that release, and
+# belongs in a reproducibility statement rather than here.
 year <- if (!is.null(meta$Date)) {
   format(as.Date(meta$Date), "%Y")
 } else {
@@ -35,12 +31,12 @@ bibentry(
   year     = year,
   note     = paste("R package version", version),
   url      = "https://github.com/anhsmith/skellambrms",
-  doi      = "10.5281/zenodo.22231871",
+  doi      = "10.5281/zenodo.22231870",
   header   = "Package citation:",
   textVersion = paste0(
     "Smith, A. N. H. (", year, "). skellambrms: Skellam and ",
     "Discrete-Difference brms Custom Families for Count Differences. ",
     "R package version ", version, ". ",
-    "https://doi.org/10.5281/zenodo.22231871"
+    "https://doi.org/10.5281/zenodo.22231870"
   )
 )

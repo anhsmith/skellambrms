@@ -24,52 +24,55 @@ returns a \code{stanvars} object holding the Stan code for \code{dnorm1_lpmf}.
 \code{log_lik_dnorm1()} returns a numeric vector of log-densities, one per
 posterior draw, for observation \code{i}. \code{posterior_predict_dnorm1()} returns
 a vector of simulated differences, one per posterior draw, for
-observation \code{i}, drawn subject to that row's \code{resp_trunc()} bounds where
-it has any. \code{posterior_epred_dnorm1()} returns a draws x observations
+observation \code{i}, drawn within the truncation bounds of that observation
+if it has any. \code{posterior_epred_dnorm1()} returns a draws x observations
 matrix of means, taken over the truncated distribution on any row that is
 bounded.
 }
 \description{
-Returns a brms custom family for the discrete normal distribution,
-location fixed at 0, discretised from the continuous Normal(0, sigma)
-via CDF differencing: \code{P(Z=z) = F(z+0.5) - F(z-0.5)}. One parameter,
-sigma (link = "log"), the SD; the mean is always zero. Same
-CDF-differencing pattern as \code{dlaplace1()}, using Stan's built-in
-\code{normal_lcdf}/\code{normal_lccdf} directly -- no Bessel function and no
-iteration cap needed, but see the cancellation note below for a
-branch this family's PMF does need.
+Returns a brms custom family for the discrete normal distribution with
+location fixed at 0, obtained from the continuous Normal(0, sigma) by CDF
+differencing: \code{P(Z = z) = F(z + 0.5) - F(z - 0.5)}. The single parameter
+is \code{sigma} (log link), the SD of the continuous distribution before
+discretisation; the mean is zero. The PMF and CCDF are closed-form: the
+Stan code computes the PMF with \code{normal_lcdf} for \code{z < 0} and with
+\code{erfc()} for \code{z >= 0}, and the CCDF with \code{erfc()} (see "Evaluation in the
+upper tail"). As in \code{dlaplace1()}, they require no Bessel function and
+no iteration cap.
 
 Use in a brm() call as:
 brm(y ~ ..., family = dnorm1(), stanvars = dnorm1_stanvars(), data = ...)
 }
-\details{
-\strong{Naming note.} Same forced naming as \code{skellam1()}/\code{dlaplace1()}:
-\code{brms::custom_family()} requires a dpar literally named \code{"mu"}; here
-it represents sigma (the SD), not a mean. See \code{\link[=skellam1]{skellam1()}} Details for
-the full rationale.
+\section{Parameter named mu}{
 
-\strong{No scale conversion needed.} Unlike \code{dlaplace1()}, where Stan's
-\code{double_exponential_lcdf} expects the continuous Laplace's own scale
-\code{b} (requiring \code{b = sigma / sqrt(2)} first), the continuous normal's
-own SD parameter \emph{is} sigma directly -- \code{sigma} is passed straight to
-\code{normal_lcdf}/\code{normal_lccdf} with no intermediate conversion.
-
-\strong{Cancellation in the PMF, fixed by branching on z's sign.} The
-naive \code{log_diff_exp(normal_lcdf(z+0.5), normal_lcdf(z-0.5))} fails
-once \code{z} is far enough into the positive tail that both \code{normal_lcdf}
-calls round to the same double (both within machine epsilon of
-\code{log(1)=0}) -- confirmed to occur at only ~10 SDs out, well inside
-this package's realistic-but-stressed test range for the other
-families, and far sooner than the analogous direct-subtraction form
-in \code{dlaplace1()} (the normal's thinner tail saturates near 1 much
-faster per SD than the Laplace's). Fixed in \code{dnorm1_lpmf} (and the
-R-side \code{log_lik_dnorm1}) by differencing two \emph{survival} values
-(\code{normal_lccdf}, both small and hence distinguishable) instead of two
-\emph{CDF} values when \code{z >= 0} -- the same exact-survival-form idea
-\code{dlaplace1_lccdf}/\code{dlaplace2_lccdf} already use, applied here to the
-PMF rather than the CCDF, since CDF differencing is itself the
-operation that creates the cancellation risk in the first place.
+As in \code{skellam1()} and \code{dlaplace1()}, \code{brms::custom_family()} requires a
+parameter named \code{"mu"}, and in \code{dnorm1()} that parameter is \code{sigma}, the
+SD, not a mean. See \code{\link[=skellam1]{skellam1()}} for the consequences for formulas and
+priors.
 }
+
+\section{Scale parameter}{
+
+\code{sigma} is the SD of the continuous normal distribution and enters the
+normal CDF unchanged. \code{dlaplace1()}, by contrast, converts \code{sigma} to the
+Laplace scale \code{b} first. The SD of the discretised distribution is close
+to \code{sqrt(sigma^2 + 1/12)} for \code{sigma >= 0.5}: larger than \code{sigma} by 4.1\%
+at \code{sigma = 1} and by 1.0\% at \code{sigma = 2}.
+}
+
+\section{Evaluation in the upper tail}{
+
+The Stan function \code{normal_lccdf} returns negative infinity for
+standardised arguments above about 8.25 (stan-dev/math#1985).
+\code{dnorm1_lccdf} therefore computes the upper-tail probability as
+\code{0.5 * erfc(x / (sigma * sqrt(2)))}, and \code{dnorm1_lpmf} uses the same form
+for \code{z >= 0}. In R, \code{log_lik_dnorm1()} uses \code{pnorm(lower.tail = FALSE)}
+for \code{z >= 0}, because \code{log(pnorm(z + 0.5) - pnorm(z - 0.5))} evaluates
+to \code{log(0)} once \code{z} exceeds about 8.5 SDs. Both the Stan and the R
+log-PMF are accurate until they underflow below about -708, near 38 SDs
+from 0.
+}
+
 \seealso{
 \code{\link[=dnorm1_lccdf_stanvars]{dnorm1_lccdf_stanvars()}} for truncation; \code{\link[=dnorm2]{dnorm2()}} for the
 free-mean version; \code{\link[=skellam1]{skellam1()}} and \code{\link[=dlaplace1]{dlaplace1()}} for the same fixed

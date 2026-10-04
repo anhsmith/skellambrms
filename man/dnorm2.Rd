@@ -24,40 +24,56 @@ returns a \code{stanvars} object holding the Stan code for \code{dnorm2_lpmf}.
 \code{log_lik_dnorm2()} returns a numeric vector of log-densities, one per
 posterior draw, for observation \code{i}. \code{posterior_predict_dnorm2()} returns
 a vector of simulated differences, one per posterior draw, for
-observation \code{i}, drawn subject to that row's \code{resp_trunc()} bounds where
-it has any. \code{posterior_epred_dnorm2()} returns a draws x observations
-matrix of means, taken over the truncated distribution on any row that is
-bounded.
+observation \code{i}, drawn within the truncation bounds of that observation
+if it has any. \code{posterior_epred_dnorm2()} returns a draws x observations
+matrix of means of the discretised distribution: computed from a
+rapidly converging series on rows without truncation bounds, and by
+summing the truncated PMF on bounded rows.
 }
 \description{
-Returns a brms custom family for the discrete normal distribution
-with both location (\code{mu}, link = "identity") and scale (\code{sigma},
-link = "log") free, discretised via CDF differencing exactly as
-\code{dnorm1()} but centred at \code{mu} instead of fixed at 0:
-\code{P(Z=z) = F(z+0.5) - F(z-0.5)}, \code{F} the continuous Normal(mu, sigma)
-CDF.
+Returns a brms custom family for the discrete normal distribution with
+free location (\code{mu}, identity link) and free scale (\code{sigma}, log link),
+obtained by CDF differencing as in \code{dnorm1()} but centred at \code{mu} rather
+than 0: \code{P(Z = z) = F(z + 0.5) - F(z - 0.5)}, where \code{F} is the CDF of the
+continuous Normal(mu, sigma).
 
 Use in a brm() call as:
 brm(y ~ ..., family = dnorm2(), stanvars = dnorm2_stanvars(), data = ...)
 }
-\details{
-\strong{No naming workaround needed.} Unlike \code{skellam1()}/\code{dlaplace1()}/
-\code{dnorm1()}, \code{mu} here genuinely is the family's mean, so brms's "must
-have a \code{mu} parameter" requirement (see \code{\link[=skellam1]{skellam1()}} Details) is
-satisfied directly -- no forced reinterpretation.
+\section{Parameter named mu}{
 
-\strong{No constraint coupling mu and sigma.} Same structural contrast with
-\code{skellam2()} already documented for \code{\link[=dlaplace2]{dlaplace2()}} (see its Details):
-\code{mu} and \code{sigma} are free, independent parameters here, by
-design. Fitting \code{skellam2()} against \code{dlaplace2()} and \code{dnorm2()}
-compares a model where bias and spread are structurally coupled
-against ones where they are not; this package supplies all three
-families for that comparison.
-
-\strong{Cancellation in the PMF.} Same issue and fix as \code{dnorm1()} (see its
-Details), generalised to branch on whether \code{z} is on the far side of
-\code{mu} rather than of 0.
+In \code{dnorm2()}, the parameter named \code{mu} is the location, so the
+requirement of \code{brms::custom_family()} for a parameter named \code{"mu"} (see
+\code{\link[=skellam1]{skellam1()}}) is met without reinterpreting it.
 }
+
+\section{Independence of mu and sigma}{
+
+As in \code{\link[=dlaplace2]{dlaplace2()}}, \code{mu} and \code{sigma} vary independently, with no
+constraint between them. Fitting \code{skellam2()}, \code{dlaplace2()} and
+\code{dnorm2()} to the same data compares a model in which the bias and the
+spread of the difference are coupled with two models in which they are
+not.
+}
+
+\section{Evaluation in the upper tail}{
+
+As in \code{\link[=dnorm1]{dnorm1()}}, the PMF and CCDF compute the upper tail with \code{erfc()},
+with the PMF branching on whether \code{z} lies above or below \code{mu} rather
+than 0.
+}
+
+\section{Mean of the discretised distribution}{
+
+The mean of the discretised distribution equals \code{mu} when \code{mu} is an
+integer or a half-integer. For other values of \code{mu}, the mean differs
+from \code{mu} by less than 1e-9 at \code{sigma = 1} and by less than 5e-6 at
+\code{sigma = 0.75}, but by up to 0.0023 at \code{sigma = 0.5} and 0.093 at
+\code{sigma = 0.25}. \code{mu} is therefore the location of the continuous
+distribution before discretisation, not the mean of the discretised one.
+\code{posterior_epred_dnorm2()} returns the mean.
+}
+
 \seealso{
 \code{\link[=dnorm2_lccdf_stanvars]{dnorm2_lccdf_stanvars()}} for truncation; \code{\link[=dnorm1]{dnorm1()}} for the
 fixed-mean version; \code{\link[=skellam2]{skellam2()}} for the coupled comparison;

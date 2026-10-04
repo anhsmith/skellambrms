@@ -118,6 +118,35 @@ test_that("Stan skellam1_lccdf matches package pskellam reference", {
   expect_lt(max(abs(diffs)), 1e-6)
 })
 
+# -----------------------------------------------------------------------
+# Far lower bounds. The grids above evaluate the log-CCDF at arguments no
+# lower than -31. Up to 0.6.0, the tail sum started at y + 1 and stopped
+# after 500 terms, so for y more than about 495 below the bulk it stopped
+# before reaching the probability mass: at sigma = 5, it returned -0.48 at
+# y = -499 and -134.5 at y = -600, where the true value is 0. These tests
+# cover arguments that far down, and either side of the mean.
+# -----------------------------------------------------------------------
+
+test_that("skellam1_lccdf_r is correct far below the bulk of the distribution", {
+  for (s in c(2, 5, 10)) {
+    expect_equal(suppressWarnings(skellam1_lccdf_r(c(-499, -600, -1000), s)), c(0, 0, 0),
+                 tolerance = 1e-12)
+  }
+  y <- -6:6
+  expect_equal(skellam1_lccdf_r(y, 3),
+               log(skellam::pskellam(y, 4.5, 4.5, lower.tail = FALSE)),
+               tolerance = 1e-8)
+})
+
+test_that("Stan skellam1_lccdf is correct far below the bulk of the distribution", {
+  skip_if_not(stan_ready, "rstan unavailable or Stan compilation failed")
+  vals <- vapply(c(-499L, -600L, -1000L), skellam1_lccdf, numeric(1), sigma = 5)
+  expect_equal(vals, c(0, 0, 0), tolerance = 1e-12)
+  y <- -6:6
+  stan_vals <- vapply(y, function(k) skellam1_lccdf(as.integer(k), 3), numeric(1))
+  expect_equal(stan_vals, skellam1_lccdf_r(y, 3), tolerance = 1e-10)
+})
+
 test_that("Stan skellam1_lccdf is numerically stable at large sigma (normal-approx branch)", {
   skip_if_not(stan_ready, "rstan unavailable or Stan compilation failed")
   for (mu in c(500, 5000)) {

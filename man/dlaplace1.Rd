@@ -24,46 +24,61 @@ posterior_epred_dlaplace1(prep)
 for \code{dlaplace1_lpmf}. \code{log_lik_dlaplace1()} returns a numeric vector of
 log-densities, one per posterior draw, for observation \code{i}.
 \code{posterior_predict_dlaplace1()} returns a vector of simulated
-differences, one per posterior draw, for observation \code{i}, drawn subject
-to that row's \code{resp_trunc()} bounds where it has any.
+differences, one per posterior draw, for observation \code{i}, drawn within
+the truncation bounds of that observation if it has any.
 \code{posterior_epred_dlaplace1()} returns a draws x observations matrix of
 means, taken over the truncated distribution on any row that is bounded.
 }
 \description{
-Returns a brms custom family for the discrete Laplace distribution,
-location fixed at 0, discretised from the continuous Laplace(0, b) via
-CDF differencing: \code{P(Z=z) = F(z+0.5) - F(z-0.5)}. One parameter, sigma
-(link = "log"), the SD; the mean is always zero. Unlike skellam1/
-skellam2, the PMF and CCDF are closed-form
-(\code{double_exponential_lcdf}-based -- Stan's name for the Laplace
-distribution -- no Bessel function, no large-argument branch or
-iteration cap needed).
+Returns a brms custom family for the discrete Laplace distribution with
+location fixed at 0, obtained from the continuous Laplace(0, b) by CDF
+differencing: \code{P(Z = z) = F(z + 0.5) - F(z - 0.5)}. The single parameter
+is \code{sigma} (log link), the SD of the continuous distribution before
+discretisation (see "Conversion from sigma to b"); the mean is zero.
+Unlike the PMF and CCDF
+of \code{skellam1()} and \code{skellam2()}, those of \code{dlaplace1()} are closed-form,
+built on the Stan function \code{double_exponential_lcdf} (Stan names the
+Laplace distribution "double exponential"). They require no Bessel
+function, no large-argument branch and no iteration cap.
 
 Use in a brm() call as:
 brm(y ~ ..., family = dlaplace1(), stanvars = dlaplace1_stanvars(), data = ...)
 }
-\details{
-\strong{Naming note.} Same forced naming as \code{skellam1()}: \code{brms::custom_family()}
-requires a dpar literally named \code{"mu"}; here it represents sigma (the
-SD), not a mean. See \code{\link[=skellam1]{skellam1()}} Details for the full rationale.
+\section{Parameter named mu}{
 
-\strong{sigma-to-b conversion.} Stan's \code{double_exponential_lcdf} expects
-the continuous Laplace's own scale parameter, \code{b}. Var(Laplace(0,b)) = \code{2*b^2}, so SD
-= \code{b*sqrt(2)}; treating sigma as exactly that SD (the discretisation
-perturbs the true discrete variance only slightly, and this keeps
-sigma on the same scale as the other three families) gives
-\code{b = sigma / sqrt(2)}, computed first in both \code{dlaplace1_lpmf} and
-\code{dlaplace1_lccdf}.
-
-\strong{Validation note.} \code{extraDistr::ddlaplace()} implements a different
-discrete Laplace — its \code{scale} argument is actually a decay
-probability \code{p} for the exact closed form \verb{P(z) = (1-p)/(1+p) * p^|z|}, not a continuous-Laplace \code{b} — confirmed numerically to NOT
-match this family's CDF-differenced PMF (e.g. at \code{b=3},
-\code{p=exp(-1/3)}: \code{P(0) = 0.1535} here vs \code{0.1651} there). This package's
-tests validate against a hand-derived CDF-difference R reference
-instead — the documented fallback for when a package reference isn't
-applicable.
+As in \code{skellam1()}, \code{brms::custom_family()} requires a parameter named
+\code{"mu"}, and in \code{dlaplace1()} that parameter is \code{sigma}, the SD, not a
+mean. See \code{\link[=skellam1]{skellam1()}} for the consequences for formulas and priors.
 }
+
+\section{Conversion from sigma to b}{
+
+\code{double_exponential_lcdf} takes the scale \code{b} of the continuous Laplace
+distribution. The variance of Laplace(0, b) is \code{2 * b^2}, so its SD is
+\code{b * sqrt(2)}, and \code{dlaplace1_lpmf} and \code{dlaplace1_lccdf} both begin by
+computing \code{b = sigma / sqrt(2)}. The conversion treats \code{sigma} as the SD
+of the continuous distribution. For \code{sigma >= 0.5}, the SD of the
+discretised distribution is larger: by 7.9\% at \code{sigma = 0.5}, 3.4\% at
+\code{sigma = 1}, 1.0\% at \code{sigma = 2} and 0.2\% at \code{sigma = 5}. At
+\code{sigma = 0.25}, it is 2.2\% smaller, and below that it falls far below
+\code{sigma}, because nearly all of the probability falls on 0: at
+\code{sigma = 0.1}, the discretised SD is 0.029. In \code{skellam1()} and
+\code{skellam2()}, by contrast, \code{sigma} is the exact SD of the integer-valued
+difference.
+}
+
+\section{Comparison with extraDistr}{
+:ddlaplace:
+\code{extraDistr::ddlaplace()} implements a different discrete Laplace
+distribution, with PMF \verb{P(z) = (1 - p) / (1 + p) * p^|z|}, in which its
+argument \code{scale} is the decay probability \code{p} rather than the continuous
+scale \code{b}. The two PMFs differ: at \code{b = 3} and \code{p = exp(-1/3)},
+\code{P(0) = 0.1535} under \code{dlaplace1()} and \code{0.1651} under
+\code{extraDistr::ddlaplace()}. The tests in this package therefore compare
+\code{dlaplace1()} with an R implementation of the CDF difference rather than
+with \code{extraDistr}.
+}
+
 \seealso{
 \code{\link[=dlaplace1_lccdf_stanvars]{dlaplace1_lccdf_stanvars()}} for truncation; \code{\link[=dlaplace2]{dlaplace2()}} for the
 free-mean version; \code{\link[=skellam1]{skellam1()}} and \code{\link[=dnorm1]{dnorm1()}} for the same fixed
