@@ -1,12 +1,12 @@
-# Truncated-discrete-Laplace log-CCDF for use with brms's resp_trunc() (free location and scale)
+# Log-CCDF of the discrete Laplace distribution with free location, for truncated fits
 
 Returns a
 [`brms::stanvar()`](https://paulbuerkner.com/brms/reference/stanvar.html)
 defining `dlaplace2_lccdf`, the log complementary CDF of the discrete
-Laplace(mu, sigma) family – `dlaplace2_lccdf(y, mu, sigma)` = log P(Z \>
-y). Same role, calling convention, and no-threshold-argument rationale
-as
-[`dlaplace1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1_lccdf_stanvars.md).
+Laplace(mu, sigma) distribution: `dlaplace2_lccdf(y, mu, sigma)` = log
+P(Z \> y). `dlaplace2_lccdf_stanvars()` is used in the same way as
+[`dlaplace1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1_lccdf_stanvars.md),
+and likewise takes no threshold argument.
 
 ## Usage
 

@@ -10,9 +10,10 @@ Six families, three distributions in two flavours each — the Skellam
 (the difference of two Poisson variates), the discrete Laplace, and the
 discrete normal. The `1` variants fix the location at zero (do the two
 sources agree on average?); the `2` variants estimate it (by how much do
-they disagree?). All six are parameterised on a common (mean, SD-scale)
-convention so that fits are directly comparable, and all six support
-truncation via
+they disagree?). All six are parameterised by a location and an SD-scale
+spread, which are the exact mean and SD of the difference for the
+Skellam families and close to them for the other two (see [Difference
+families](#difference-families)). All six support truncation via
 [`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html).
 
 Standard `brms` count families (Poisson, negative binomial, …) model a
@@ -34,13 +35,13 @@ only option when the response must be truncated, since
 [`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html)
 takes a univariate response. Where the level and the congruence matter
 too, model the pair jointly instead: the companion package
-[`bicountbrms`](https://github.com/anhsmith/bicountbrms) supplies
-bivariate Poisson and bivariate negative-binomial families that retain
-the level, the correlation and the disagreement together, and admit rows
-on which only one of the two counts was observed. The two packages are
-connected: for the bivariate Poisson, the induced difference
-$`y_1 - y_2`$ is exactly Skellam-distributed, so the difference model
-implied by `bipois()` is
+[`bicountbrms`](https://github.com/anhsmith/bicountbrms) supplies a
+bivariate Poisson family and a family with negative-binomial components.
+Both retain the level, the correlation and the disagreement together,
+and admit rows on which only one of the two counts was observed. The two
+packages are connected: for the bivariate Poisson, the induced
+difference $`y_1 - y_2`$ is exactly Skellam-distributed, so the
+difference model implied by `bipois()` is
 [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md).
 
 One thing not to do, whether you model the difference or the pair:
@@ -51,10 +52,15 @@ $`-1`$ by shared sampling error alone (Bland and Altman 1986).
 ## Difference families
 
 A difference family models $`d = y_1 - y_2`$ with a distribution on
-$`\mathbb{Z}`$. All three underlying distributions are parameterised on
-a common **(mean, SD-scale)** convention so that fits are directly
-comparable: a location $`\mu`$ (the mean of $`d`$) and a spread
-$`\sigma`$ (its standard deviation, on the log scale). Each comes in two
+$`\mathbb{Z}`$. All three underlying distributions are parameterised by
+a location $`\mu`$ and a spread $`\sigma`$, modelled on the log scale.
+For the Skellam families, $`\mu`$ and $`\sigma`$ are exactly the mean
+and SD of $`d`$. For the discrete Laplace and the discrete normal, they
+are the location and SD of the continuous distribution before
+discretisation. For $`\sigma \ge 2`$, these differ from the mean of
+$`d`$ by less than 0.005 and from its SD by about 1% or less (see
+[Discrete Laplace and discrete
+normal](#discrete-laplace-and-discrete-normal)). Each comes in two
 flavours — mean fixed at $`0`$ (does the pair agree on average?) and
 free mean (how large is the systematic bias?):
 
@@ -111,10 +117,20 @@ P(Z = z) = F\!\left(z + \tfrac12\right) - F\!\left(z - \tfrac12\right),
 ```
 
 with $`F`$ the $`\mathrm{Laplace}(\mu, b)`$ or
-$`\mathrm{Normal}(\mu, \sigma)`$ CDF. The scale is put on the same SD
-footing as the Skellam families: for the Laplace, $`\mathrm{Var}=2b^2`$,
-so $`b=\sigma/\sqrt2`$; for the normal, $`\sigma`$ is already the SD.
-The `*1` versions fix $`\mu=0`$; the `*2` versions free it.
+$`\mathrm{Normal}(\mu, \sigma)`$ CDF. In both, $`\sigma`$ is the SD of
+$`F`$: for the Laplace, $`\mathrm{Var}=2b^2`$, so $`b=\sigma/\sqrt2`$;
+for the normal, $`\sigma`$ is the SD parameter itself. The `*1` versions
+fix $`\mu=0`$; the `*2` versions free it.
+
+Discretisation changes both moments. The SD of $`Z`$ exceeds $`\sigma`$
+by 3.4% (Laplace) and 4.1% (normal) at $`\sigma = 1`$, and by 1.0% at
+$`\sigma = 2`$; for the normal with $`\sigma \ge 0.5`$, it is close to
+$`\sqrt{\sigma^2 + 1/12}`$. The mean of $`Z`$ equals $`\mu`$ only when
+$`\mu`$ is an integer or a half-integer. Otherwise, at $`\sigma = 1`$,
+it differs from $`\mu`$ by up to 0.015 for the Laplace and by less than
+$`10^{-9}`$ for the normal; at $`\sigma = 0.5`$, the differences are up
+to 0.054 and 0.0023. The `posterior_epred_*()` methods return the mean
+of $`Z`$, not $`\mu`$.
 
 Unlike
 [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md),
@@ -129,9 +145,15 @@ independent parameters. That contrast is deliberate. Fitting
 /
 [`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
 (uncoupled) tests whether your data’s disagreement obeys the Skellam
-$`\sigma^2 \ge \lvert\text{mean}\rvert`$ relationship or not. The
-discrete normal is the light-tailed reference; the discrete Laplace the
-heavy-tailed one.
+$`\sigma^2 \ge \lvert\text{mean}\rvert`$ relationship or not. $`\sigma`$
+is the exact SD of $`d`$ in
+[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md),
+but the SD of $`F`$ in
+[`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
+and
+[`dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md),
+which differs from the SD of $`d`$ (see above). The discrete normal is
+the light-tailed reference; the discrete Laplace the heavy-tailed one.
 
 ### Usage
 
@@ -236,8 +258,13 @@ parameter — that forced `"mu"` slot actually holds `sigma`. If you read
 output or call `get_dpar(prep, "mu")` for one of these three, you are
 looking at $`\sigma`$, not a mean. Every R-side function in the package
 immediately rebinds it to `sigma`, so nothing else ever calls it `mu`.
-The free-mean families (`skellam2`, `dlaplace2`, `dnorm2`) are the ones
-whose `mu` genuinely is the mean.
+In the free-mean families (`skellam2`, `dlaplace2`, `dnorm2`), `mu` is
+the location: the exact mean of $`d`$ in
+[`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md),
+and the location of the continuous distribution before discretisation in
+[`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
+and
+[`dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md).
 
 **`sigmaexcess`, not `sigma_excess`.**
 [`custom_family()`](https://paulbuerkner.com/brms/reference/custom_family.html)
@@ -250,9 +277,9 @@ excess-spread parameter is spelled `sigmaexcess`.
 | Code | Math | Meaning |
 |----|----|----|
 | `d` (the response) | $`d = y_1 - y_2`$ | the difference, on $`\mathbb{Z}`$ |
-| `mu` (free-mean families) | $`\mu`$ | mean of $`d`$ |
+| `mu` (free-mean families) | $`\mu`$ | location of $`d`$; its exact mean in [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md) |
 | `mu` (fixed-mean families) | $`\sigma`$ | the spread — see above; **not** a mean |
-| `sigma` | $`\sigma`$ | SD of $`d`$, log-linked |
+| `sigma` | $`\sigma`$ | spread of $`d`$, log-linked; its exact SD in the Skellam families |
 | `sigmaexcess` | $`\sigma_{\text{excess}}`$ | [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)’s free spread, with $`\sigma^2 = \lvert\mu\rvert + \sigma_{\text{excess}}^2`$ |
 | — | $`\theta_1`$, $`\theta_2`$ | the two Poisson rates a Skellam difference is built from |
 
@@ -430,12 +457,10 @@ directly (except for the truncated-`posterior_epred` workaround above).
 
 ## Funding
 
-This package was developed by [Sea Through
-Science](https://www.seathrough.science) for a fisheries
-electronic-monitoring project led by Johanna Pierre of [JPEC
-Consulting](https://jpec.co.nz/), with support from The Nature
-Conservancy, the Belize Blue Bonds for Ocean Conservation and the Belize
-Fund for a Sustainable Future.
+This package was developed by Sea Through Science for a fisheries
+electronic-monitoring project led by Johanna Pierre of JPEC Consulting,
+with support from The Nature Conservancy, the Belize Blue Bonds for
+Ocean Conservation and the Belize Fund for a Sustainable Future.
 
 ## References
 

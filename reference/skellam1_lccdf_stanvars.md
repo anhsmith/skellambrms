@@ -1,18 +1,17 @@
-# Truncated-Skellam log-CCDF for use with brms's resp_trunc()
+# Log-CCDF of the symmetric Skellam distribution, for truncated fits
 
 Returns a
 [`brms::stanvar()`](https://paulbuerkner.com/brms/reference/stanvar.html)
 defining `skellam1_lccdf`, the log complementary CDF of the symmetric
-Skellam(mu_skellam, mu_skellam) distribution —
-`skellam1_lccdf(y, sigma)` = log P(delta \> y), where
-`mu_skellam = sigma^2 / 2` is derived internally. brms's generic
-truncation machinery
-([`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html))
-locates a custom family's log-CCDF by name convention
-(`<family>_lccdf`), so adding this stanvar alongside
+Skellam(mu_skellam, mu_skellam) distribution: `skellam1_lccdf(y, sigma)`
+= log P(delta \> y), with `mu_skellam = sigma^2 / 2` derived inside the
+function. For truncation with
+[`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html),
+brms finds the log-CCDF of a custom family by the name `<family>_lccdf`.
+Adding this stanvar to
 [`skellam1_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
-is sufficient to support truncated fits, including a row-varying lower
-bound — no other wiring is required.
+is therefore all that a truncated fit requires, including a fit whose
+lower bound varies by row.
 
 ## Usage
 
@@ -24,9 +23,8 @@ skellam1_lccdf_stanvars(normal_approx_threshold = 100)
 
 - normal_approx_threshold:
 
-  Numeric scalar; `mu_skellam` values above this use the normal
-  approximation instead of the exact Bessel-sum tail. Default `100`. See
-  Details for how to choose this for your data.
+  Numeric scalar. Values of `mu_skellam` above this threshold use the
+  normal approximation instead of the exact tail sum. Default `100`.
 
 ## Value
 
@@ -38,42 +36,21 @@ via `+`.
 
 ## Details
 
-For `mu_skellam` above `normal_approx_threshold`, the exact log-CCDF —
-an iterative tail-sum of the Skellam PMF, each term a Bessel function
-evaluation — is replaced by a normal approximation, using
-Var(Skellam(mu_skellam, mu_skellam)) = 2 \* mu_skellam. This guards
-against two confirmed failure modes, both triggered by an unadapted HMC
-proposal pushing `sigma` (and hence `mu_skellam`) to an extreme value
-during warmup (the log link on `sigma` places no ceiling on it):
+For `mu_skellam` above `normal_approx_threshold`, `skellam1_lccdf` uses
+a normal approximation with variance `2 * mu_skellam`. At or below the
+threshold, it sums the PMF exactly, over whichever tail lies away from
+the mean: for `y >= 0`, the upper tail upward from `y + 1`; for `y < 0`,
+the lower tail downward from `y`, returning the log of one minus that
+sum. Each term of the sum evaluates a modified Bessel function, and the
+log link places no upper bound on `sigma`, so warmup can propose values
+of `mu_skellam` at which the exact sum is slow to evaluate. The sum
+stops after 500 terms, or earlier once a term is more than 40 log-units
+below the running sum; neither limit can be changed.
 
-- A crash (`std::bad_alloc`) from `log_modified_bessel_first_kind` being
-  evaluated at an enormous Bessel order.
-
-- A slow-motion version of the same problem: `mu_skellam` in the
-  hundreds still triggers the expensive exact loop, and if many rows do
-  this within a single deep NUTS tree the cost compounds
-  multiplicatively rather than crashing outright — observed as 200+
-  CPU-seconds and several GB of memory consumed without completing one
-  iteration.
-
-The exact loop is also capped at 500 iterations past `y`, with an early
-exit once the tail term becomes negligible (more than ~40 log-units
-below the running sum). These guard the same two failure modes as the
-threshold itself and are not configurable here.
-
-The default threshold of 100 is **not a universal constant** — it was
-calibrated to one project's data, where real per-taxon `mu_skellam`
-estimates topped out around 30 (this is on the `mu_skellam` scale,
-unaffected by the sigma-reparameterisation). The 3x margin above that
-(rather than setting the threshold at, say, 35) exists because HMC
-warmup transiently proposes values well outside any final posterior
-estimate, not because 30 itself needed padding. When using this function
-with a different count scale, consider what *implausible but reachable
-during warmup* looks like for your `mu_skellam`, not just your expected
-posterior range, and set the threshold a few-fold above that. Setting it
-too low pays for the normal approximation's bias more often than
-necessary; setting it too high re-exposes the crash/slow-blowup risk
-this exists to prevent.
+A larger threshold applies the exact sum to more evaluations, and a
+smaller one applies the normal approximation, which is less accurate in
+the tails, to more. The threshold is on the `mu_skellam` scale, not the
+`sigma` scale.
 
 ## See also
 

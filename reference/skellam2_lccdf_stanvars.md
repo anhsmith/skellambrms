@@ -1,18 +1,22 @@
-# Truncated-asymmetric-Skellam log-CCDF for use with brms's resp_trunc()
+# Log-CCDF of the asymmetric Skellam distribution, for truncated fits
 
 Returns a
 [`brms::stanvar()`](https://paulbuerkner.com/brms/reference/stanvar.html)
 defining `skellam2_lccdf`, the log complementary CDF of the asymmetric
-Skellam(theta1, theta2) distribution —
-`skellam2_lccdf(y, mu, sigmaexcess)` = log P(delta \> y). Same role and
-calling convention as
-[`skellam1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md);
-see that function's documentation for how
+Skellam(theta1, theta2) distribution:
+`skellam2_lccdf(y, mu, sigmaexcess)` = log P(delta \> y).
+`skellam2_lccdf_stanvars()` is used in the same way as
+[`skellam1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md),
+and the documentation of
+[`skellam1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md)
+describes how
 [`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html)
-locates it and for the rationale behind the normal-approximation
-threshold (here checked against `mu_skellam = (theta1 + theta2) / 2`,
-the direct generalisation of skellam1's threshold quantity to the
-asymmetric case — see skellam2_lccdf_stan() in stanfunctions.R).
+finds the function, the normal approximation and the exact sum. In
+`skellam2_lccdf`, the threshold is compared with
+`mu_skellam = (theta1 + theta2) / 2`, which equals the `mu_skellam` of
+[`skellam1()`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
+when `theta1 = theta2`, and the exact sum changes from the upper to the
+lower tail at `y = mu` rather than at `y = 0`.
 
 ## Usage
 
@@ -24,9 +28,8 @@ skellam2_lccdf_stanvars(normal_approx_threshold = 100)
 
 - normal_approx_threshold:
 
-  Numeric scalar; see
-  [`skellam1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md)
-  for how to choose this for your data. Default `100`.
+  Numeric scalar, compared with `mu_skellam` as described above. Default
+  `100`.
 
 ## Value
 
@@ -41,4 +44,4 @@ via `+`.
 [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
 for the family itself;
 [`skellam1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md)
-for the normal-approximation threshold and how to choose it.
+for the normal approximation and the exact sum.

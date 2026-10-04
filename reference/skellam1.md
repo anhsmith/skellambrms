@@ -1,12 +1,12 @@
 # Symmetric Skellam custom family for brms
 
 Returns a brms custom family for the symmetric Skellam distribution,
-Skellam(mu_skellam, mu_skellam) — the distribution of the difference of
-two independent Poisson(mu_skellam) random variables. The single
-parameter is sigma (link = "log"), the SD of that difference; the mean
-is always zero. Internally, mu_skellam = sigma^2 / 2 is derived as a
-transformed parameter and fed to the underlying Bessel-function PMF,
-which is otherwise unchanged.
+Skellam(mu_skellam, mu_skellam): the distribution of the difference of
+two independent Poisson(mu_skellam) random variables. The mean is zero.
+The single parameter is `sigma` (log link), the SD of the difference.
+The Stan code derives `mu_skellam = sigma^2 / 2` and evaluates the
+Skellam PMF, which is written in terms of a modified Bessel function, at
+that value.
 
 Use in a brm() call as: brm(y ~ ..., family = skellam1(), stanvars =
 skellam1_stanvars(), data = ...)
@@ -32,45 +32,23 @@ posterior_epred_skellam1(prep)
 for `skellam1_lpmf`. `log_lik_skellam1()` returns a numeric vector of
 log-densities, one per posterior draw, for observation `i`.
 `posterior_predict_skellam1()` returns a vector of simulated
-differences, one per posterior draw, for observation `i`, drawn subject
-to that row's
-[`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html)
-bounds where it has any. `posterior_epred_skellam1()` returns a draws x
-observations matrix of means, taken over the truncated distribution on
-any row that is bounded.
+differences, one per posterior draw, for observation `i`, drawn within
+the truncation bounds of that observation if it has any.
+`posterior_epred_skellam1()` returns a draws x observations matrix of
+means, taken over the truncated distribution on any row that is bounded.
 
-## Details
+## Parameter named mu
 
-This family was originally parameterised directly on mu_skellam (link =
-"log"); it now samples on sigma instead, for a common (mean, SD-scale)
-convention shared with skellam2(), dlaplace1(), and dlaplace2(). Since
-sigma = sqrt(2 \* mu_skellam), a prior previously written on
-log(mu_skellam) — e.g. normal(1, 1.5) — translates as: log(sigma) = 0.5
-\* log(2) + 0.5 \* log(mu_skellam) so an intercept of 1 on the old
-log(mu_skellam) scale corresponds to an intercept of
-`0.5*log(2) + 0.5*1` ≈ 0.847 on the new log(sigma) scale, and the old
-prior's SD of 1.5 becomes 0.75 on the new scale (a linear transform of a
-normal is normal). This is a scale correspondence only —
-slope-coefficient interpretations from the old parameterisation do NOT
-transfer; any offset-vs-free-slope diagnostic should be redone fresh
-against this sigma-scale parameterisation.
-
-**Naming note.**
 [`brms::custom_family()`](https://paulbuerkner.com/brms/reference/custom_family.html)
-hard-requires one `dpars` entry to be literally named `"mu"`
-(`stop2("All families must have a 'mu' parameter.")`, unconditional, no
-override) — every family built on it, including this one, must comply
-regardless of what that parameter actually represents. For skellam1, the
-brms/Stan-level dpar named `mu` IS sigma (the SD of the difference,
-log-linked); it is NOT the distribution's mean, which is structurally
-zero throughout. This is a forced naming collision with brms's API, not
-a reversion to the pre-reparameterisation behaviour: internally,
-`mu_skellam = mu^2 / 2` is still derived from it before reaching the
-Bessel-function PMF, exactly as documented above for "sigma". All R-side
-helper functions below immediately rebind this dpar to a variable called
-`sigma` so that no code in this package, other than the literal `dpars`/
-[`get_dpar()`](https://paulbuerkner.com/brms/reference/get_dpar.html)
-calls forced by brms, ever refers to it as `mu`.
+requires one distributional parameter to be named `"mu"`, whatever that
+parameter represents. In `skellam1()`, the parameter named `mu` is
+`sigma`, the SD of the difference, on the log link; the mean of
+`skellam1()` is zero throughout. In formulas and priors, refer to
+`sigma` as `mu`: for example,
+`prior(normal(1, 1.5), class = "Intercept")` is a prior on the intercept
+of log(sigma). The post-processing functions in this package read the
+parameter with `brms::get_dpar(prep, "mu")` and assign it at once to a
+variable named `sigma`.
 
 ## See also
 

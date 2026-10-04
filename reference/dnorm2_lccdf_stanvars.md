@@ -1,11 +1,12 @@
-# Truncated-discrete-normal log-CCDF for use with brms's resp_trunc() (free location and scale)
+# Log-CCDF of the discrete normal distribution with free location, for truncated fits
 
 Returns a
 [`brms::stanvar()`](https://paulbuerkner.com/brms/reference/stanvar.html)
 defining `dnorm2_lccdf`, the log complementary CDF of the discrete
-Normal(mu, sigma) family – `dnorm2_lccdf(y, mu, sigma)` = log P(Z \> y).
-Same role, calling convention, and no-threshold-argument rationale as
-[`dnorm1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dnorm1_lccdf_stanvars.md).
+Normal(mu, sigma) distribution: `dnorm2_lccdf(y, mu, sigma)` = log P(Z
+\> y). `dnorm2_lccdf_stanvars()` is used in the same way as
+[`dnorm1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dnorm1_lccdf_stanvars.md),
+and likewise takes no threshold argument.
 
 ## Usage
 

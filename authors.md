@@ -17,14 +17,14 @@ Source:
 [`inst/CITATION`](https://github.com/anhsmith/skellambrms/blob/master/inst/CITATION)
 
 Smith, A. N. H. (2026). skellambrms: Skellam and Discrete-Difference
-brms Custom Families for Count Differences. R package version 0.6.0.
-https://doi.org/10.5281/zenodo.22231871
+brms Custom Families for Count Differences. R package version 0.6.1.
+https://doi.org/10.5281/zenodo.22231870
 
     @Manual{,
       title = {{skellambrms}: Skellam and Discrete-Difference {brms} Custom Families for Count Differences},
       author = {Adam N. H. Smith},
       year = {2026},
-      note = {R package version 0.6.0},
+      note = {R package version 0.6.1},
       url = {https://github.com/anhsmith/skellambrms},
-      doi = {10.5281/zenodo.22231871},
+      doi = {10.5281/zenodo.22231870},
     }

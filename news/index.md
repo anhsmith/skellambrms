@@ -1,5 +1,122 @@
 # Changelog
 
+## skellambrms 0.6.1 (not yet released)
+
+- The Skellam log-CCDF was wrong far below the bulk of the distribution,
+  in the Stan functions `skellam1_lccdf` and `skellam2_lccdf` and in
+  their R counterparts. Below `normal_approx_threshold`, the CCDF was
+  summed upward from `y + 1` and stopped after 500 terms, so for `y`
+  more than about 495 below the bulk it stopped before reaching the
+  probability mass. At `sigma = 5`, `skellam1_lccdf` returned -0.48 at
+  `y = -499`, -134.5 at `y = -600` and -Inf at `y = -1000`, where the
+  true value is 0. brms normalises a lower-truncated observation with
+  the log-CCDF at `lb - 1`, so under `trunc(lb = -y2)` the likelihood of
+  any row with `y2` above about 495 was wrong, as were
+  [`posterior_predict()`](https://mc-stan.org/rstantools/reference/posterior_predict.html)
+  and
+  [`posterior_epred()`](https://mc-stan.org/rstantools/reference/posterior_epred.html)
+  for that row. The sum now runs away from the bulk: upward from `y + 1`
+  when `y` is at or above the mean, and downward from `y` otherwise,
+  returning the log of one minus the lower-tail sum. Across 98 cases
+  from `y = -1000` to above the mean, the fixed Stan functions agree
+  with the exact CCDF to 1e-8. The previous tests evaluated the log-CCDF
+  no lower than `y = -31`; new tests cover `y` down to -1000 and either
+  side of the mean, in R and in Stan. The discrete Laplace and discrete
+  normal families compute the CCDF in closed form and were not affected.
+
+- [`posterior_epred_dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
+  and
+  [`posterior_epred_dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md)
+  returned `mu` on rows without truncation bounds. The discretised
+  variable is distributed as round(X), whose mean equals `mu` only for
+  integer or half-integer `mu`. For
+  [`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md),
+  the difference reaches 0.015 at `sigma = 1`, 0.054 at `sigma = 0.5`
+  and 0.14 at `sigma = 0.25`; for
+  [`dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md),
+  it is below 1e-9 at `sigma = 1` but reaches 0.093 at `sigma = 0.25`.
+  Both methods now return the exact mean: a closed form for the discrete
+  Laplace, and a series in the characteristic function for the discrete
+  normal. Both agree with direct summation of the PMF to 1e-14 for
+  `sigma` from 0.01 to 100. Rows with truncation bounds were already
+  exact. Two new tests compare each method with summation of the PMF and
+  with the mean of
+  [`posterior_predict()`](https://mc-stan.org/rstantools/reference/posterior_predict.html)
+  draws at non-integer `mu`.
+
+- The README and `.zenodo.json` no longer say that all six families
+  share a (mean, SD) convention under which fits are directly
+  comparable. For the Skellam families, `mu` and `sigma` are the exact
+  mean and SD of the difference. For the discrete Laplace and discrete
+  normal, they are the location and SD of the continuous distribution
+  before discretisation. The README gives the size of the differences.
+
+- DESCRIPTION now states a minimum version of brms and the system
+  requirements for fitting. `Imports: brms (>= 2.21.0)`, the earliest of
+  the brms releases tested (2.15.0, 2.16.0, 2.21.0, 2.23.0) under which
+  the test suite passes. Every post-processing method calls
+  [`brms::get_dpar()`](https://paulbuerkner.com/brms/reference/get_dpar.html),
+  which brms has exported since 2.16.0; under 2.16.0, three
+  [`make_stancode()`](https://paulbuerkner.com/brms/reference/stancode.html)
+  tests fail inside brms on R 4.6. A truncated
+  [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+  fit was run under brms 2.21.0 with both backends. A new
+  `SystemRequirements` field names the C++17 compiler that rstan or
+  CmdStan uses to compile each model, and `Language: en-GB` declares the
+  spelling used in the documentation.
+
+- The PDF manual failed to build because
+  [`?skellam1`](https://anhsmith.github.io/skellambrms/reference/skellam1.md)
+  contained the character “≈”, which LaTeX cannot typeset. The section
+  containing it, on converting priors from the log(mu_skellam) scale of
+  earlier versions, is removed; its statement that slope coefficients do
+  not convert between the two scales was wrong, since a slope on
+  log(mu_skellam) is twice the slope on log(sigma).
+
+- The help pages of the six families and their `_lccdf_stanvars()`
+  functions are rewritten for users of the package. Development history,
+  notes on how results were confirmed, statements about the data the
+  default `normal_approx_threshold` was chosen for, and instructions
+  addressed to maintainers are removed; the bold “notes” in Details
+  become named sections. Three statements are corrected.
+  [`?dlaplace2`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
+  said that
+  [`skellam2()`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+  requires `sigma >= |mu|`; the constraint is `sigma^2 >= |mu|`, as
+  [`?skellam2`](https://anhsmith.github.io/skellambrms/reference/skellam2.md)
+  states.
+  [`?dnorm1`](https://anhsmith.github.io/skellambrms/reference/dnorm1.md)
+  and
+  [`?dnorm1_lccdf_stanvars`](https://anhsmith.github.io/skellambrms/reference/dnorm1_lccdf_stanvars.md)
+  said the Stan code uses `normal_lccdf`; it uses `erfc()` for the upper
+  tail, because `normal_lccdf` returns negative infinity above about
+  8.25 SDs.
+  [`?dnorm1`](https://anhsmith.github.io/skellambrms/reference/dnorm1.md)
+  also said that `log_diff_exp()` of two `normal_lcdf` values cancels
+  near 10 SDs; under rstan 2.32 and CmdStan 2.37 that form is accurate
+  to the underflow of the log-PMF near 38 SDs, and the cancellation
+  occurs only in R, with
+  [`pnorm()`](https://rdrr.io/r/stats/Normal.html). The help pages of
+  the four discrete families now state that `sigma` is the SD of the
+  continuous distribution before discretisation, and those of
+  [`dlaplace2()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2.md)
+  and
+  [`dnorm2()`](https://anhsmith.github.io/skellambrms/reference/dnorm2.md)
+  state by how much the mean of the discretised distribution differs
+  from `mu`.
+
+- `citation("skellambrms")` now gives the Zenodo concept DOI,
+  10.5281/zenodo.22231870, which resolves to the latest archived
+  version. It previously gave the version DOI for 0.6.0, which would
+  have been out of date in every later release.
+
+- The README no longer calls the joint families in bicountbrms
+  “bivariate negative-binomial”: their margins are not negative
+  binomial; their components are. The hyperlinks to JPEC Consulting and
+  Sea Through Science are removed, because both sites rejected requests
+  from the URL check in `R CMD check`. The Funding section still names
+  both organisations.
+
 ## skellambrms 0.6.0
 
 - **The difference families are back under their original package

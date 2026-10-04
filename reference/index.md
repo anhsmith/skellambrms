@@ -50,24 +50,26 @@ correctly under
 [`resp_trunc()`](https://paulbuerkner.com/brms/reference/addition-terms.html).
 
 - [`skellam1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam1_lccdf_stanvars.md)
-  : Truncated-Skellam log-CCDF for use with brms's resp_trunc()
+  : Log-CCDF of the symmetric Skellam distribution, for truncated fits
 - [`skellam2_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/skellam2_lccdf_stanvars.md)
-  : Truncated-asymmetric-Skellam log-CCDF for use with brms's
-  resp_trunc()
+  : Log-CCDF of the asymmetric Skellam distribution, for truncated fits
 - [`dnorm1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dnorm1_lccdf_stanvars.md)
-  : Truncated-discrete-normal log-CCDF for use with brms's resp_trunc()
+  : Log-CCDF of the discrete normal distribution with location 0, for
+  truncated fits
 - [`dnorm2_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dnorm2_lccdf_stanvars.md)
-  : Truncated-discrete-normal log-CCDF for use with brms's resp_trunc()
-  (free location and scale)
+  : Log-CCDF of the discrete normal distribution with free location, for
+  truncated fits
 - [`dlaplace1_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dlaplace1_lccdf_stanvars.md)
-  : Truncated-discrete-Laplace log-CCDF for use with brms's resp_trunc()
+  : Log-CCDF of the discrete Laplace distribution with location 0, for
+  truncated fits
 - [`dlaplace2_lccdf_stanvars()`](https://anhsmith.github.io/skellambrms/reference/dlaplace2_lccdf_stanvars.md)
-  : Truncated-discrete-Laplace log-CCDF for use with brms's resp_trunc()
-  (free location and scale)
+  : Log-CCDF of the discrete Laplace distribution with free location,
+  for truncated fits
 
 ## Parameterisation helpers
 
 Read a fitted family’s dpars under the names its documentation uses.
 
 - [`skellam2_dpars()`](https://anhsmith.github.io/skellambrms/reference/skellam2_dpars.md)
-  : Report skellam2's derived quantities from a fitted model
+  : Derived quantities of the asymmetric Skellam family from a fitted
+  model
